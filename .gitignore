@@ -1,0 +1,45 @@
+# IntelliJ
+.idea/
+*.iml
+out/
+
+# VS Code
+.vscode/
+
+# Java
+target/
+build/
+.gradle/
+*.class
+*.jar
+
+# Go
+bin/
+coverage.out
+*.test
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp
+*.swp
+
+# Test reports
+coverage/
+test-results/
+
+# Secrets
+*.pem
+*.key
+secrets/
