@@ -1,45 +1,27 @@
 # Backend Interview Preparation
 
-A structured, working repository for backend software engineering interview prep
-covering Java, Go, data structures & algorithms, databases, system design,
-practical projects, and behavioral interviews.
+A structured, working repository for backend software engineering interview prep covering Java, Spring Boot, Go, JavaScript, TypeScript, Node.js, React, databases, data structures & algorithms, system design, distributed systems, behavioral interviews, mock interviews, practical projects, and cheat sheets.
 
-## Study Tracks
+**Disclaimer:** This repository is intended strictly for learning and interview preparation purposes.
 
-| Track | Location | Focus |
-|---|---|---|
-| Java | [`java/`](java/) | Core Java, Collections, Concurrency, JVM, Spring |
-| Go | [`go/`](go/) | Fundamentals, Concurrency, Backend services, Runtime |
-| DSA | [`dsa/`](dsa/) | Coding patterns and problem solutions |
-| System Design | [`system-design/`](system-design/) | Fundamentals, components, distributed systems, design problems |
-| Databases | [`databases/`](databases/) | SQL, indexing, Redis, MongoDB |
-| Projects | [`projects/`](projects/) | Practical backend services |
-| Behavioral | [`behavioral/`](behavioral/) | STAR stories and soft-skill prep |
-| Mock Interviews | [`mock-interviews/`](mock-interviews/) | Session notes and feedback |
-| Cheat Sheets | [`cheat-sheets/`](cheat-sheets/) | One-page final revision notes |
+## Directory Navigation
 
-## How to use this repo
+- **[Roadmap](roadmap/README.md)**
+- **[Java Track](java/README.md)**
+- **[Go Track](go/README.md)**
+- **[JavaScript / TypeScript Track](javascript/README.md)**
+- **[Databases Track](databases/README.md)**
+- **[DSA Track](dsa/README.md)**
+- **[System Design Track](system-design/README.md)**
+- **[Behavioral Track](behavioral/README.md)**
+- **[Projects](projects/README.md)**
+- **[Mock Interviews](mock-interviews/README.md)**
+- **[Cheat Sheets](cheat-sheets/README.md)**
+- **[Resources](resources/README.md)**
 
-1. Follow the [12-week plan](roadmap/12-week-plan.md).
-2. Each weekday, follow the [daily routine](roadmap/daily-study-plan.md).
-3. Update [`roadmap/progress-tracker.md`](roadmap/progress-tracker.md) as you go — check boxes, don't just read.
-4. Every topic file follows the same structure: definition → why it exists → how it works →
-   code example → production use case → common mistakes → trade-offs → interview questions.
-5. DSA solutions live one-problem-per-folder under `dsa/java-solutions/` and `dsa/go-solutions/`.
-6. Build projects one at a time, to completion, before starting the next.
+## Recommended Study Workflow
+1. Use the [12-week plan](roadmap/12-week-plan.md).
+2. Keep track of progress using the [progress tracker](roadmap/progress-tracker.md).
 
-## Weekly Workflow
-
-```text
-1. Study one Java topic
-2. Study one Go topic
-3. Solve 5 DSA problems (mixed patterns)
-4. Complete one system-design section
-5. Improve one practical project
-6. Record mistakes + interview answers
-7. Update the progress tracker
-```
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+## Contributing
+Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for contribution rules.

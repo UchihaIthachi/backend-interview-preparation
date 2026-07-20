@@ -1,5 +1,3 @@
 # Databases
 
-- [SQL fundamentals, transactions, indexing](sql.md)
-- [Redis](redis.md)
-- [MongoDB](mongodb.md)
+Directory structure for database interview preparation.
