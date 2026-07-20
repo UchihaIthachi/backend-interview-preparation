@@ -1,0 +1,10 @@
+docs(repo): strictly migrate contents without adding dummies
+
+- Parsed all existing markdown theory and questions.
+- Moved theory notes to theory.md across all tracks.
+- Separated questions strictly into basic, advanced, and scenario markdown files without injecting fake/placeholder questions.
+- Retained directory hierarchy mapping to user guidelines.
+- Preserved existing Behavioral notes (e.g. mapping to tell-me-about-yourself).
+- Generated missing READMEs using strict directory links.
+- Updated root README per spec.
+- No random boilerplate files were pushed.
