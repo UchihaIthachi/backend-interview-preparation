@@ -1,6 +1,3 @@
-# Sql
+# Java Util Concurrent
 
-## Files
-
-- [Theory](theory.md)
 - [Scenario-based interview questions](scenario-questions.md)

@@ -1,6 +1,3 @@
-# Sql
+# Spring Cloud
 
-## Files
-
-- [Theory](theory.md)
 - [Scenario-based interview questions](scenario-questions.md)

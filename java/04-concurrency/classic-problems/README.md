@@ -1,6 +1,3 @@
-# Sql
+# Classic Problems
 
-## Files
-
-- [Theory](theory.md)
 - [Scenario-based interview questions](scenario-questions.md)

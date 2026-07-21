@@ -8,3 +8,4 @@
 Don't memorize scripts word-for-word — memorize the *shape* of each story
 (Situation, Task, Action, Result) so you can adapt it naturally to whatever
 the actual question is.
+- [Scenario-based interview questions](scenario-questions.md)

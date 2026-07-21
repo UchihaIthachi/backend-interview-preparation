@@ -1,6 +1,3 @@
-# Sql
+# Data Management
 
-## Files
-
-- [Theory](theory.md)
 - [Scenario-based interview questions](scenario-questions.md)
