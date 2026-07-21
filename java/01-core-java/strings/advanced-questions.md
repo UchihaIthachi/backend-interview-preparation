@@ -2,33 +2,61 @@
 
 ## Question 1: What is the difference between String, StringBuilder, and StringBuffer?
 
-• String: Immutable. Slow for repeated modifications as each change creates a new object.
-• StringBuilder: Mutable, non-thread-safe. Extremely fast (approx 95% faster than String for repeated edits) but has no synchronization overhead.
-• StringBuffer: Mutable, thread-safe. All methods are synchronized, preventing race conditions in multi-threaded environments, but this comes with a performance cost (approx 65% faster than String, but slower than StringBuilder).
+### String
 
-## Question 2: What is difference b/w String, StringBuilder, and StringBuffer in java ?
+- `String` is **immutable**, meaning its value cannot be changed after creation.
+- Operations such as concatenation, replacement, or appending create a new `String` object.
+- String literals can be stored in the **String Pool**, allowing identical literals to share the same object.
+- `String` is suitable for values that do not require frequent modification.
+- Its immutability makes it inherently safe to share between threads.
 
-**String:**
-- String is immutable, meaning that it cannot be changed after it is created. Any modification (like appending) creates a brand-new object in memory.
-- String literals are stored in a String pool, which is a shared area of memory used to optimize storage.
+### StringBuilder
 
-**StringBuilder:**
-- `StringBuilder` is a mutable class, meaning it modifies the same object directly in memory without creating new objects.
-- It is **not** thread-safe. Multiple threads accessing it concurrently can cause data corruption or race conditions.
-- Because it lacks synchronization overhead, it is the fastest option for string manipulation in single-threaded applications.
+- `StringBuilder` is **mutable**, so its contents can be modified without creating a new object for every operation.
+- Its methods are **not synchronized**, so it is not thread-safe when the same instance is modified by multiple threads.
+- It is generally faster than `StringBuffer` because it has no synchronization overhead.
+- It is the preferred option for repeated string modifications in single-threaded code.
 
-**StringBuffer:**
-- `StringBuffer` is also a mutable class.
-- It is **thread-safe**. Every method in `StringBuffer` is synchronized, meaning it can be safely used by multiple threads at the same time without race conditions.
-- Because of the synchronization overhead, it is slower than `StringBuilder`.
+### StringBuffer
 
-## Question 3: Difference between StringBuffer and StringBuilder?
+- `StringBuffer` is also **mutable**.
+- Its methods are synchronized, making it thread-safe for individual operations.
+- Synchronization introduces additional overhead, so it is generally slower than `StringBuilder`.
+- It should be used when the same mutable character sequence must be shared and modified across multiple threads.
 
-| Feature | `StringBuffer` | `StringBuilder` |
-| :--- | :--- | :--- |
-| **Thread Safety** | Thread-safe. | Not thread-safe. |
-| **Synchronization** | All methods are synchronized. | Methods are not synchronized. |
-| **Performance** | Slower due to synchronization overhead. | Faster because there is no waiting time for threads. |
-| **Use Case** | Use when multiple threads need to read and write strings concurrently, or when a single string object is shared across threads. | Use in single-threaded applications or when performance is the priority. Default choice over StringBuffer. |
-| **Introduced In** | Java 1.0 | Java 1.5 |
+### Summary
 
+| Feature                | `String`                     | `StringBuilder`                        | `StringBuffer`                          |
+| :--------------------- | :--------------------------- | :------------------------------------- | :-------------------------------------- |
+| Mutability             | Immutable                    | Mutable                                | Mutable                                 |
+| Thread-safe            | Yes, because it is immutable | No                                     | Yes, through synchronized methods       |
+| Synchronization        | Not applicable               | No                                     | Yes                                     |
+| Repeated modifications | Inefficient                  | Most efficient in single-threaded code | Useful when synchronization is required |
+| Typical use case       | Fixed or rarely changed text | String manipulation within one thread  | Shared mutable text across threads      |
+
+---
+
+## Question 2: What is the difference between StringBuffer and StringBuilder?
+
+| Feature             | `StringBuffer`                                         | `StringBuilder`                                     |
+| :------------------ | :----------------------------------------------------- | :-------------------------------------------------- |
+| **Thread safety**   | Thread-safe for individual method calls                | Not thread-safe                                     |
+| **Synchronization** | Methods are synchronized                               | Methods are not synchronized                        |
+| **Performance**     | Generally slower because of synchronization overhead   | Generally faster                                    |
+| **Recommended use** | When the same instance is modified by multiple threads | For most single-threaded string-building operations |
+| **Introduced in**   | Java 1.0                                               | Java 1.5                                            |
+
+### Example
+
+```java
+StringBuilder builder = new StringBuilder();
+builder.append("Hello");
+builder.append(" World");
+
+String result = builder.toString();
+System.out.println(result);
+```
+
+`StringBuilder` is normally the default choice for constructing or repeatedly modifying strings. Use `StringBuffer` only when synchronized access to the same mutable instance is genuinely required.
+
+> Note: `StringBuffer` synchronizes individual method calls, but a sequence of multiple operations may still require external synchronization when the entire sequence must be atomic.

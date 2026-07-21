@@ -1,147 +1,653 @@
 # Advanced Questions
 
-## Question 1: What is a HashMap? How does it work internally?
+## Question 1: What is a `HashMap`, and how does it work internally?
 
-`HashMap` stores key-value pairs using a hash table. Keys are hashed to determine the index, and collisions are handled using linked lists or trees.
+A `HashMap` stores data as key-value pairs using a hash-table-based structure.
 
-Internally, `HashMap` is backed by an array of Nodes (buckets).
-- When `put(key, value)` is called, it calculates the hash of the key and determines the bucket index using `(n - 1) & hash`.
-- If the bucket is empty, a new Node is created.
-- If the bucket is not empty (collision), it checks if the key already exists (using `equals()`). If it does, the value is updated.
-- If it's a new key, it's added to the end of the linked list in that bucket.
-- Java 8 Optimization: If the linked list size exceeds the `TREEIFY_THRESHOLD` (default 8) and the array capacity is at least `MIN_TREEIFY_CAPACITY` (64), the linked list is converted into a Red-Black Tree. This improves worst-case search time from O(n) to O(log n).
-- When the number of elements exceeds `capacity * loadFactor` (default 0.75), the array is resized (doubled), and elements are rehashed (`rehashing`).
+Internally, it maintains an array of buckets. Each bucket may contain:
 
-## Question 2: Explain the internal working of ArrayList
+* No entry
+* A single node
+* A linked list of nodes
+* A red-black tree when many collisions occur
 
-`ArrayList` is backed by a dynamic `Object[]` array:
-- **Initial capacity:** 10 (default).
-- When the array is full and a new element is added, a new array is allocated with `capacity = (oldCapacity * 3) / 2 + 1` (in Java 8+ it's exactly `oldCapacity + (oldCapacity >> 1)`), which is approximately a 1.5x growth.
-- The old array contents are copied to the new array using `Arrays.copyOf()` (which internally calls `System.arraycopy()`).
-- `get(index)` is O(1) — direct array access.
-- `add(element)` at end is amortized O(1) — occasional resizing is O(n) but rare.
-- `add(index, element)` or `remove(index)` in the middle is O(n) — requires shifting elements.
-- `contains()` and `indexOf()` are O(n) — linear scan.
+When `put(key, value)` is called:
 
-`ArrayList` is the most commonly used `List` because random access is cheap and cache-friendly due to contiguous memory.
+1. `HashMap` calculates a hash value from the key's `hashCode()`.
+2. It determines the bucket index using the table size and the calculated hash.
+3. If the bucket is empty, a new node is inserted.
+4. If the bucket already contains entries, `HashMap` compares keys using `equals()`.
+5. If an equal key exists, its value is replaced.
+6. Otherwise, a new entry is added to the bucket.
 
-## Question 3: How does Set ensure uniqueness without knowing object equality logic?
+In Java 8 and later, a long collision chain may be converted into a red-black tree when:
 
-`Set` relies on the `hashCode()` and `equals()` methods defined on the objects themselves. When you call `set.add(obj)`:
-- `HashSet` (which internally uses a `HashMap`) computes `obj.hashCode()` to find the bucket.
-- It then calls `equals()` on each existing object in that bucket.
-- If any existing object `equals()` the new object, the add is rejected.
+* The bucket contains at least eight entries.
+* The table capacity is at least 64.
 
-So `Set` does not need to know your equality logic — it delegates entirely to the object's own `equals()` and `hashCode()` methods. This is why overriding these correctly is critical.
+This can improve worst-case lookup time from `O(n)` to `O(log n)` for heavily collided buckets.
 
-## Question 4: How does LinkedHashSet maintain insertion order?
+A `HashMap` normally uses:
 
-`LinkedHashSet` extends `HashSet` but wraps a `LinkedHashMap` internally. Each entry in the backing `LinkedHashMap` maintains two extra pointers (before and after) forming a doubly-linked list across all entries in insertion order. This gives `LinkedHashSet` the O(1) add/remove/contains of `HashSet` combined with predictable insertion-order iteration. The memory overhead is two extra object references per entry.
+* Default initial capacity: `16`
+* Default load factor: `0.75`
 
-## Question 5: Why is TreeSet slower than HashSet?
+When the number of entries exceeds `capacity × loadFactor`, the table is resized, normally by doubling its capacity.
 
-`TreeSet` is backed by a `TreeMap`, which is a Red-Black Tree — a self-balancing binary search tree.
-- `HashSet`: add, remove, contains are O(1) average.
-- `TreeSet`: add, remove, contains are O(log n) — each operation traverses or rebalances the tree.
+### Time complexity
 
-`TreeSet`'s advantage is that it maintains sorted order and supports range queries (headSet, tailSet, subSet, first, last, floor, ceiling). Use `TreeSet` when you need sorted iteration; use `HashSet` when you only need fast membership testing.
+| Operation  | Average case | Worst case                                 |
+| :--------- | :----------- | :----------------------------------------- |
+| `get()`    | `O(1)`       | `O(n)` or `O(log n)` for treeified buckets |
+| `put()`    | `O(1)`       | `O(n)` or `O(log n)`                       |
+| `remove()` | `O(1)`       | `O(n)` or `O(log n)`                       |
 
-## Question 6: What is Hashtable and why is it not recommended?
+Correct implementations of `equals()` and `hashCode()` are essential when custom objects are used as keys.
 
-`Hashtable` is a legacy class from Java 1.0 (before the Collections Framework). It is a synchronized hash map where every method is synchronized on the entire object:
-- All methods (`get`, `put`, `remove`, `containsKey`, `size`) are synchronized — extreme contention in multithreaded environments.
-- Does not allow `null` keys or `null` values.
-- Extends `Dictionary` (another legacy class) instead of `AbstractMap`.
-- Does not implement the `Map` interface cleanly in spirit.
+---
 
-Why not recommended:
-- `ConcurrentHashMap` provides far better concurrency with lock striping.
-- `HashMap` + external synchronization gives more control.
-- `Hashtable` is effectively obsolete and kept only for backward compatibility.
+## Question 2: Explain the internal working of `ArrayList`
 
-## Question 7: Explain the internal working of ConcurrentHashMap
+`ArrayList` is backed by a dynamically resized array, internally represented by an `Object[]`.
 
-**Java 7:** `ConcurrentHashMap` used a Segment array — each Segment is an independent `ReentrantLock`-protected mini `HashMap`. 16 segments by default meant 16 threads could write concurrently.
+When an `ArrayList` is created using the default constructor, it initially uses an empty internal array. On the first insertion, its capacity normally becomes 10.
 
-**Java 8+ (complete redesign):** `ConcurrentHashMap` now uses:
-- A `volatile Node<K,V>[] table` similar to `HashMap`.
-- CAS (Compare-And-Swap) operations for lock-free insertions into empty buckets.
-- `synchronized` on the head node of a bucket for collision handling (only locks one bucket, not the whole map).
-- Red-Black Tree treeification (same `TREEIFY_THRESHOLD=8` as `HashMap`).
-- A `volatile` size counter using `LongAdder`-style striped counting for scalable `size()` computation.
+```java
+List<String> names = new ArrayList<>();
+names.add("Alice");
+```
 
-This design allows extremely high read concurrency (reads are lock-free) and fine-grained write concurrency (only the affected bucket is locked).
+When the internal array becomes full:
 
-## Question 8: Why does ConcurrentHashMap not throw ConcurrentModificationException?
+1. A larger array is created.
+2. The capacity normally grows by approximately 50%.
+3. Existing elements are copied into the new array.
+4. The new element is inserted.
 
-`ConcurrentHashMap`'s iterators are weakly consistent — they reflect the state of the map at some point during iteration and may (or may not) reflect subsequent modifications. Instead of fail-fast behavior (checking `modCount`), iterators traverse the table snapshot and do not throw `ConcurrentModificationException`. This is by design for concurrent use cases where you want safe iteration without external synchronization.
+The growth calculation is approximately:
 
-## Question 9: What happens if two threads update the same key in ConcurrentHashMap?
+```java
+newCapacity = oldCapacity + (oldCapacity >> 1);
+```
 
-`ConcurrentHashMap` handles this atomically at the bucket level. When two threads try to update the same key:
-- Java 8+: The bucket's head node is locked with `synchronized`. One thread acquires the lock, performs its update, and releases. The second thread then acquires the lock and performs its update.
-- The last write wins — there is no automatic merging of values.
-- For atomic update-if-exists scenarios, use `compute()`, `merge()`, or `computeIfPresent()` — these are atomic at the bucket level.
+### Time complexity
 
-## Question 10: How to make our collections thread-safe?
+| Operation           | Complexity       | Reason                                    |
+| :------------------ | :--------------- | :---------------------------------------- |
+| `get(index)`        | `O(1)`           | Direct array access                       |
+| `set(index, value)` | `O(1)`           | Direct array access                       |
+| `add(value)`        | Amortized `O(1)` | Resizing occasionally requires copying    |
+| `add(index, value)` | `O(n)`           | Elements may need to be shifted           |
+| `remove(index)`     | `O(n)`           | Remaining elements may need to be shifted |
+| `contains(value)`   | `O(n)`           | Linear search                             |
+| `indexOf(value)`    | `O(n)`           | Linear search                             |
 
-Several strategies exist:
-- `Collections.synchronizedList(list)` / `synchronizedMap(map)` / `synchronizedSet(set)` — wraps any collection with synchronized methods. Simple but coarse-grained (single lock for all operations).
-- Use concurrent collections: `ConcurrentHashMap`, `CopyOnWriteArrayList`, `ConcurrentLinkedQueue` — designed for high concurrency.
-- Use explicit synchronization blocks with your own lock object.
-- Use `java.util.concurrent` locks like `ReadWriteLock` for read-heavy scenarios.
+`ArrayList` is generally a good choice when:
 
-## Question 11: Which is better: Collections.synchronizedMap or ConcurrentHashMap?
+* Fast indexed access is required.
+* Most additions occur at the end.
+* Insertions and removals from the middle are uncommon.
 
-`ConcurrentHashMap` is almost always better for production use:
-- `synchronizedMap` uses a single lock on the entire map — all reads and writes are mutually exclusive, creating a bottleneck under concurrency.
-- `ConcurrentHashMap` uses lock striping (segment locks in Java 7, or CAS + `synchronized` on individual buckets in Java 8+). Multiple threads can read and write to different parts of the map simultaneously.
-- `ConcurrentHashMap` provides atomic compound operations: `putIfAbsent()`, `computeIfAbsent()`, `compute()`, `merge()` — essential for thread-safe patterns.
-- `ConcurrentHashMap`'s iterators are weakly consistent and never throw `ConcurrentModificationException`.
+It is not thread-safe.
 
-Use `synchronizedMap` only when you need to synchronize an existing map instance or need a fully consistent snapshot view. Prefer `ConcurrentHashMap` for new concurrent code.
+---
 
-## Question 12: What is CopyOnWriteArrayList and explain its use cases?
+## Question 3: How does a `Set` ensure uniqueness?
 
-`CopyOnWriteArrayList` (COW) is a thread-safe variant of `ArrayList` where every mutating operation (`add`, `set`, `remove`) creates a brand new copy of the underlying array. Readers always see a consistent snapshot.
+A `Set` determines uniqueness using the equality rules of its implementation.
 
-Use cases:
-- Event listener lists — listeners are rarely added/removed but iterated frequently when events fire.
-- Configuration or whitelist/blacklist collections that are read thousands of times per second but updated rarely.
-- Observer pattern implementations.
-- Any scenario where reads vastly outnumber writes and you can tolerate slightly stale reads.
+For a `HashSet`, uniqueness is determined using `hashCode()` and `equals()`.
 
-## Question 13: Why does CopyOnWriteArrayList allow safe iterations?
+When `set.add(object)` is called:
 
-When an iterator is created, it captures a reference to the current array snapshot. Even if another thread modifies the list (creating a new array), the iterator continues traversing its original snapshot. Reads are completely lock-free. Since the iterator operates on an immutable array snapshot taken at iterator creation time, there is no shared mutable state between the iterator and any writing thread, hence `ConcurrentModificationException` cannot occur.
+1. The object's hash code is calculated.
+2. The corresponding bucket is identified.
+3. Existing objects in that bucket are compared using `equals()`.
+4. If an equal object already exists, the new object is not added.
+5. Otherwise, the object is inserted.
 
-## Question 14: What is the Difference between List vs Set?
+```java
+Set<String> values = new HashSet<>();
 
-- **List:** A child interface of `Collection`. If we want to represent a group of individual objects in a single entity where duplicates are allowed and insertion order is preserved, we use the `List` interface.
-- **Set:** A child interface of `Collection`. If we want to represent a group of individual objects where duplicates are not allowed and insertion order is generally not preserved (except `LinkedHashSet`), we use the `Set` interface.
+values.add("Java");
+values.add("Java");
 
-## Question 15: What is the Difference between HashSet vs LinkedHashSet?
+System.out.println(values.size()); // 1
+```
 
-- **HashSet:** Backed by `HashMap`. Insertion order is not preserved (objects are arranged based on hashcode). Duplicate objects are not allowed. Heterogeneous objects are allowed. Null insertion is possible.
-- **LinkedHashSet:** Backed by `LinkedHashMap`. Insertion order is preserved. Duplicate objects are not allowed. Heterogeneous objects are allowed. Null insertion is possible. Introduced in 1.4v.
+For custom objects, `equals()` and `hashCode()` must be implemented consistently.
 
-## Question 16: What is the Difference between HashSet vs TreeSet?
+```java
+@Override
+public boolean equals(Object object) {
+    // Equality logic
+}
 
-- **HashSet:** Backed by `HashMap`. Insertion order is not preserved. Duplicate objects not allowed. Null insertion possible.
-- **TreeSet:** Backed by a Balanced Tree (`TreeMap`). Insertion order is preserved because it's based on sorting order. Duplicate objects not allowed. Null insertion is possible only once (for empty TreeSet initially, but typically throws NPE). Implements `NavigableSet`.
+@Override
+public int hashCode() {
+    // Hash calculation
+}
+```
 
-## Question 17: What is the Difference between HashMap vs LinkedHashMap?
+The contract requires that objects considered equal by `equals()` must return the same hash code.
 
-- **HashMap:** Backed by a Hash table. Insertion order is not preserved. Null keys (once) and multiple Null values are allowed.
-- **LinkedHashMap:** Backed by a Hash table + Doubly linked list. It is a child class of `HashMap`. Insertion order is preserved. Null keys (once) and multiple Null values are allowed.
+A `TreeSet` determines uniqueness using natural ordering or a supplied `Comparator`. Two elements are considered duplicates when their comparison result is zero.
 
-## Question 18: What is the Difference between HashMap vs TreeMap?
+---
 
-- **HashMap:** Backed by a Hash table. Insertion order is not preserved. Null keys (once) and multiple Null values allowed.
-- **TreeMap:** Backed by a RED BLACK TREE. Insertion order is based on sorting order of keys. Null keys are generally not allowed (throws NPE) but multiple Null values are allowed.
+## Question 4: How does `LinkedHashSet` maintain insertion order?
 
-## Question 19: What is the Difference between TreeMap vs Hashtable?
+`LinkedHashSet` is implemented using a `LinkedHashMap`.
 
-- **TreeMap:** Backed by RED BLACK TREE. Insertion order is sorted. Does not allow null keys. Allows multiple null values.
-- **Hashtable:** Backed by Hash table. Insertion order is not preserved. Does not allow either null keys or null values (throws NPE). Every method is synchronized.
+The backing structure combines:
 
+* A hash table for fast lookup
+* A doubly linked list connecting entries in insertion order
+
+Each entry stores links to the entry inserted before it and the entry inserted after it.
+
+This allows `LinkedHashSet` to provide:
+
+* Average `O(1)` insertion
+* Average `O(1)` removal
+* Average `O(1)` lookup
+* Predictable insertion-order iteration
+
+```java
+Set<String> languages = new LinkedHashSet<>();
+
+languages.add("Java");
+languages.add("Go");
+languages.add("Python");
+
+System.out.println(languages);
+// [Java, Go, Python]
+```
+
+The main trade-off compared with `HashSet` is slightly higher memory usage.
+
+---
+
+## Question 5: Why is `TreeSet` usually slower than `HashSet`?
+
+`HashSet` is backed by a `HashMap`, while `TreeSet` is backed by a `TreeMap`, which uses a red-black tree.
+
+### Complexity comparison
+
+| Operation       | `HashSet`      | `TreeSet`  |
+| :-------------- | :------------- | :--------- |
+| `add()`         | Average `O(1)` | `O(log n)` |
+| `remove()`      | Average `O(1)` | `O(log n)` |
+| `contains()`    | Average `O(1)` | `O(log n)` |
+| Iteration order | Unspecified    | Sorted     |
+
+`TreeSet` is slower because each operation may require traversing and rebalancing a tree.
+
+However, `TreeSet` provides features that `HashSet` does not:
+
+* Sorted iteration
+* `first()` and `last()`
+* `floor()` and `ceiling()`
+* `lower()` and `higher()`
+* `headSet()`, `tailSet()`, and `subSet()`
+
+Use `HashSet` when fast membership testing is the priority. Use `TreeSet` when sorted data or range operations are required.
+
+---
+
+## Question 6: What is `Hashtable`, and why is it generally not recommended?
+
+`Hashtable` is a legacy key-value collection introduced before the Java Collections Framework.
+
+It is similar to `HashMap`, but it has several important differences:
+
+* Its public methods are synchronized.
+* It does not allow `null` keys.
+* It does not allow `null` values.
+* It extends the legacy `Dictionary` class.
+* It usually creates more lock contention than modern concurrent collections.
+
+```java
+Hashtable<String, Integer> table = new Hashtable<>();
+table.put("Alice", 10);
+```
+
+`Hashtable` is generally avoided in new code because:
+
+* `HashMap` is preferable for non-concurrent use.
+* `ConcurrentHashMap` offers better scalability for concurrent use.
+* External synchronization can be used when a custom locking strategy is required.
+
+`Hashtable` mainly remains for backward compatibility with older applications.
+
+---
+
+## Question 7: How does `ConcurrentHashMap` work internally?
+
+`ConcurrentHashMap` is a thread-safe map designed to support high levels of concurrent access.
+
+### Java 7 design
+
+Java 7 used multiple segments. Each segment acted as an independently locked portion of the map.
+
+This allowed threads to update different segments concurrently.
+
+### Java 8 and later
+
+Java 8 replaced segments with a more fine-grained design based on:
+
+* A bucket array similar to `HashMap`
+* CAS operations for some lock-free updates
+* Synchronization on an individual bucket when necessary
+* Red-black trees for heavily collided buckets
+* Distributed counters for scalable size tracking
+
+When inserting into an empty bucket, `ConcurrentHashMap` can use a compare-and-swap operation.
+
+When a bucket already contains entries, the thread may synchronize on that bucket's first node rather than locking the entire map.
+
+Reads are generally non-blocking.
+
+```java
+ConcurrentHashMap<String, Integer> counts =
+        new ConcurrentHashMap<>();
+
+counts.put("Java", 1);
+```
+
+`ConcurrentHashMap` does not permit `null` keys or `null` values.
+
+---
+
+## Question 8: Why does `ConcurrentHashMap` not throw `ConcurrentModificationException` during iteration?
+
+`ConcurrentHashMap` provides **weakly consistent iterators**.
+
+These iterators:
+
+* Do not use fail-fast `modCount` checks.
+* Can safely continue while the map is modified.
+* Reflect entries that existed at some point during or after iterator creation.
+* May or may not reflect updates performed during iteration.
+* Never throw `ConcurrentModificationException` merely because another thread modified the map.
+
+```java
+ConcurrentHashMap<String, Integer> map =
+        new ConcurrentHashMap<>();
+
+map.put("A", 1);
+map.put("B", 2);
+
+for (Map.Entry<String, Integer> entry : map.entrySet()) {
+    map.put("C", 3);
+    System.out.println(entry);
+}
+```
+
+The iterator does not represent a fully isolated snapshot, but it remains safe to use while modifications occur.
+
+---
+
+## Question 9: What happens when two threads update the same key in `ConcurrentHashMap`?
+
+Updates to an individual key are performed safely.
+
+For a simple `put()` operation, one update eventually replaces the other. The final value is normally the value written by the last completed update.
+
+```java
+map.put("count", 10);
+map.put("count", 20);
+```
+
+The final value is `20`.
+
+However, a read-modify-write sequence using separate operations is not automatically atomic:
+
+```java
+map.put("count", map.get("count") + 1);
+```
+
+Two threads could both read the same value and lose an increment.
+
+Use atomic compound methods instead:
+
+```java
+map.compute("count", (key, value) ->
+        value == null ? 1 : value + 1);
+```
+
+Other useful atomic methods include:
+
+* `putIfAbsent()`
+* `computeIfAbsent()`
+* `computeIfPresent()`
+* `compute()`
+* `merge()`
+* `replace()`
+
+For highly concurrent counters, a `LongAdder` stored in a `ConcurrentHashMap` can also be useful.
+
+---
+
+## Question 10: How can Java collections be made thread-safe?
+
+Several strategies are available.
+
+### 1. Synchronized wrappers
+
+```java
+List<String> list =
+        Collections.synchronizedList(new ArrayList<>());
+
+Map<String, Integer> map =
+        Collections.synchronizedMap(new HashMap<>());
+```
+
+These wrappers synchronize individual method calls using one shared lock.
+
+Iteration normally requires explicit synchronization:
+
+```java
+synchronized (list) {
+    for (String value : list) {
+        System.out.println(value);
+    }
+}
+```
+
+### 2. Concurrent collections
+
+Examples include:
+
+* `ConcurrentHashMap`
+* `CopyOnWriteArrayList`
+* `ConcurrentLinkedQueue`
+* `ConcurrentLinkedDeque`
+* `BlockingQueue` implementations
+* `ConcurrentSkipListMap`
+* `ConcurrentSkipListSet`
+
+These classes are designed specifically for concurrent use.
+
+### 3. Explicit synchronization
+
+```java
+synchronized (lock) {
+    // Perform multiple collection operations atomically
+}
+```
+
+### 4. Explicit lock classes
+
+```java
+Lock lock = new ReentrantLock();
+
+lock.lock();
+try {
+    // Access collection
+} finally {
+    lock.unlock();
+}
+```
+
+The best strategy depends on read/write frequency, required atomicity, ordering, and contention.
+
+---
+
+## Question 11: Which is better: `Collections.synchronizedMap()` or `ConcurrentHashMap`?
+
+For most concurrent applications, `ConcurrentHashMap` is preferable.
+
+### `Collections.synchronizedMap()`
+
+* Uses one lock for the wrapped map.
+* Individual methods are synchronized.
+* Reads and writes can block one another.
+* Iteration requires external synchronization.
+* Allows `null` keys or values when the wrapped map supports them.
+
+### `ConcurrentHashMap`
+
+* Supports highly concurrent reads.
+* Uses fine-grained coordination for writes.
+* Provides atomic compound operations.
+* Has weakly consistent iterators.
+* Does not allow `null` keys or values.
+
+```java
+ConcurrentHashMap<String, Integer> map =
+        new ConcurrentHashMap<>();
+
+map.putIfAbsent("Java", 1);
+map.computeIfPresent("Java", (key, value) -> value + 1);
+```
+
+Use `Collections.synchronizedMap()` when synchronizing an existing map is sufficient and low concurrency is expected.
+
+Use `ConcurrentHashMap` for scalable concurrent access.
+
+---
+
+## Question 12: What is `CopyOnWriteArrayList`, and when should it be used?
+
+`CopyOnWriteArrayList` is a thread-safe list that creates a new copy of its internal array whenever a modification occurs.
+
+Mutating operations include:
+
+* `add()`
+* `remove()`
+* `set()`
+* `addAll()`
+
+Readers access the current array without locking.
+
+```java
+CopyOnWriteArrayList<String> listeners =
+        new CopyOnWriteArrayList<>();
+
+listeners.add("ListenerA");
+listeners.add("ListenerB");
+```
+
+It is suitable when:
+
+* Reads greatly outnumber writes.
+* Iteration happens frequently.
+* Modifications are rare.
+* Snapshot-style iteration is acceptable.
+
+Common use cases include:
+
+* Event listener collections
+* Observer lists
+* Configuration lists
+* Feature flags
+* Small allowlists or blocklists
+
+It is not suitable for write-heavy workloads because each modification copies the entire array.
+
+---
+
+## Question 13: Why is iteration over `CopyOnWriteArrayList` safe?
+
+When an iterator is created, it stores a reference to the array that existed at that moment.
+
+```java
+Iterator<String> iterator = list.iterator();
+```
+
+If another thread modifies the list, a new internal array is created. The iterator continues reading its original array.
+
+Therefore:
+
+* The iterator sees a stable snapshot.
+* It is not affected by later modifications.
+* It does not throw `ConcurrentModificationException`.
+* No lock is required during iteration.
+
+However, modifications made after iterator creation are not visible to that iterator.
+
+The iterator also does not support modification operations such as `remove()`.
+
+---
+
+## Question 14: What is the difference between `List` and `Set`?
+
+Both `List` and `Set` are child interfaces of `Collection`.
+
+| Feature                | `List`                            | `Set`                                 |
+| :--------------------- | :-------------------------------- | :------------------------------------ |
+| Duplicates             | Allowed                           | Not allowed                           |
+| Positional index       | Supported                         | Not supported                         |
+| Ordering               | Usually preserves a defined order | Depends on implementation             |
+| Common implementations | `ArrayList`, `LinkedList`         | `HashSet`, `LinkedHashSet`, `TreeSet` |
+| Typical use            | Ordered sequence of elements      | Unique collection of elements         |
+
+Example:
+
+```java
+List<String> list = new ArrayList<>();
+list.add("Java");
+list.add("Java");
+
+System.out.println(list);
+// [Java, Java]
+```
+
+```java
+Set<String> set = new HashSet<>();
+set.add("Java");
+set.add("Java");
+
+System.out.println(set);
+// [Java]
+```
+
+A `HashSet` has no guaranteed iteration order, a `LinkedHashSet` preserves insertion order, and a `TreeSet` maintains sorted order.
+
+---
+
+## Question 15: What is the difference between `HashSet` and `LinkedHashSet`?
+
+| Feature                     | `HashSet`          | `LinkedHashSet`                    |
+| :-------------------------- | :----------------- | :--------------------------------- |
+| Backing structure           | `HashMap`          | `LinkedHashMap`                    |
+| Duplicate elements          | Not allowed        | Not allowed                        |
+| Iteration order             | Unspecified        | Insertion order                    |
+| `null` support              | One `null` element | One `null` element                 |
+| Average add/remove/contains | `O(1)`             | `O(1)`                             |
+| Memory usage                | Lower              | Higher due to linked-list pointers |
+
+Use `HashSet` when order does not matter.
+
+Use `LinkedHashSet` when unique values must be returned in insertion order.
+
+```java
+Set<Integer> values = new LinkedHashSet<>();
+
+values.add(30);
+values.add(10);
+values.add(20);
+
+System.out.println(values);
+// [30, 10, 20]
+```
+
+---
+
+## Question 16: What is the difference between `HashSet` and `TreeSet`?
+
+| Feature                | `HashSet`                   | `TreeSet`                        |
+| :--------------------- | :-------------------------- | :------------------------------- |
+| Backing structure      | `HashMap`                   | `TreeMap`                        |
+| Ordering               | Unspecified                 | Sorted                           |
+| Average operation time | `O(1)`                      | `O(log n)`                       |
+| Duplicate elements     | Not allowed                 | Not allowed                      |
+| Equality rule          | `equals()` and `hashCode()` | `compareTo()` or `Comparator`    |
+| `null` support         | One `null` element          | Normally does not support `null` |
+| Navigation methods     | No                          | Yes                              |
+
+`TreeSet` does not preserve insertion order. It stores elements according to natural ordering or a supplied comparator.
+
+```java
+Set<Integer> numbers = new TreeSet<>();
+
+numbers.add(30);
+numbers.add(10);
+numbers.add(20);
+
+System.out.println(numbers);
+// [10, 20, 30]
+```
+
+Elements must be mutually comparable. Mixing unrelated, non-comparable types normally causes a `ClassCastException`.
+
+---
+
+## Question 17: What is the difference between `HashMap` and `LinkedHashMap`?
+
+| Feature           | `HashMap`   | `LinkedHashMap`                   |
+| :---------------- | :---------- | :-------------------------------- |
+| Backing structure | Hash table  | Hash table and doubly linked list |
+| Iteration order   | Unspecified | Insertion order by default        |
+| `null` keys       | One         | One                               |
+| `null` values     | Multiple    | Multiple                          |
+| Average get/put   | `O(1)`      | `O(1)`                            |
+| Memory usage      | Lower       | Higher                            |
+
+`LinkedHashMap` can also be configured to maintain access order instead of insertion order:
+
+```java
+Map<String, Integer> cache =
+        new LinkedHashMap<>(16, 0.75f, true);
+```
+
+With access order enabled, recently accessed entries move toward the end of the iteration order. This behavior is useful for implementing LRU-style caches.
+
+---
+
+## Question 18: What is the difference between `HashMap` and `TreeMap`?
+
+| Feature                | `HashMap`                   | `TreeMap`                    |
+| :--------------------- | :-------------------------- | :--------------------------- |
+| Backing structure      | Hash table                  | Red-black tree               |
+| Key order              | Unspecified                 | Sorted                       |
+| Average get/put/remove | `O(1)`                      | `O(log n)`                   |
+| `null` key             | One allowed                 | Normally not allowed         |
+| `null` values          | Allowed                     | Allowed                      |
+| Comparison             | `equals()` and `hashCode()` | `Comparable` or `Comparator` |
+| Navigation methods     | No                          | Yes                          |
+
+`TreeMap` provides methods such as:
+
+* `firstKey()`
+* `lastKey()`
+* `floorKey()`
+* `ceilingKey()`
+* `lowerKey()`
+* `higherKey()`
+* `subMap()`
+* `headMap()`
+* `tailMap()`
+
+Use `HashMap` for fast general-purpose key lookup.
+
+Use `TreeMap` when keys must remain sorted or range queries are required.
+
+---
+
+## Question 19: What is the difference between `TreeMap` and `Hashtable`?
+
+| Feature                  | `TreeMap`                         | `Hashtable`                       |
+| :----------------------- | :-------------------------------- | :-------------------------------- |
+| Backing structure        | Red-black tree                    | Hash table                        |
+| Key order                | Sorted                            | Unspecified                       |
+| Thread-safe              | No                                | Yes, through synchronized methods |
+| Key operation complexity | `O(log n)`                        | Average `O(1)`                    |
+| `null` keys              | Normally not allowed              | Not allowed                       |
+| `null` values            | Allowed                           | Not allowed                       |
+| Modern recommendation    | Use when sorted keys are required | Generally avoid in new code       |
+
+`TreeMap` is designed for sorted key-value storage.
+
+`Hashtable` is a synchronized legacy map. For modern concurrent applications, `ConcurrentHashMap` is normally preferred.
