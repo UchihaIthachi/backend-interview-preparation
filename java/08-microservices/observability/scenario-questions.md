@@ -43,3 +43,66 @@ Production and DevOps
 2. Circuit Breaker is open. What happens to requests? How does it recover?
 3. Your Docker container is running but API is not responding. Where do you start?
 4. How do you monitor logs across 10 microservices simultaneously?
+
+# Advanced Interview Questions & Answers
+
+**Scenario/Question:** 61. Customers report slow fund transfers, but CPU, memory, and database metrics look normal. What else would you investigate?
+
+**Answer:** Check network latency, thread pool exhaustion, garbage collection pauses, third-party API response times (using distributed tracing), and database connection pool saturation.
+
+**Scenario/Question:** 62. A production issue occurs only once every three days. How would you collect enough evidence to diagnose it?
+
+**Answer:** Implement comprehensive structured logging, keep highly detailed traces using sampling, configure alerts on specific error codes, and capture heap dumps automatically on OutOfMemory errors.
+
+**Scenario/Question:** 63. How would you correlate logs across multiple banking microservices without exposing sensitive customer data?
+
+**Answer:** Use a unique, opaque Correlation ID (trace ID) passed in HTTP headers across all services. Log this ID with every log statement, ensuring no PII is logged alongside it.
+
+**Scenario/Question:** 64. A transaction disappears from the logs due to asynchronous processing. How would you trace it end-to-end?
+
+**Answer:** Propagate the Trace ID into the message queue metadata (Kafka headers or JMS properties) so the consuming service can pick it up and continue logging with the same context.
+
+**Scenario/Question:** 65. What metrics would you expose for a fund transfer API?
+
+**Answer:** Throughput (requests/sec), latency (p50, p95, p99), error rate (4xx, 5xx), business metrics (successful transfers vs failed), and resource metrics (thread pool usage).
+
+**Scenario/Question:** 66. How would you distinguish between business failures and technical failures in monitoring dashboards?
+
+**Answer:** Map technical errors to 5xx HTTP codes and business errors (insufficient funds) to 4xx codes. Use distinct tags in metrics (e.g., `error_type=technical` vs `error_type=business`).
+
+**Scenario/Question:** 67. A customer complains about duplicate SMS notifications, but transaction logs show only one request. How would you investigate?
+
+**Answer:** Check the SMS gateway logs for network retries, investigate the message queue for uncommitted consumer offsets causing redelivery, and verify if the SMS service itself lacks idempotency.
+
+**Scenario/Question:** 68. How would you detect slow database queries before customers notice performance issues?
+
+**Answer:** Enable database slow query logs, monitor APM tools (e.g., Dynatrace, New Relic) for database span latency, and alert on query execution times exceeding specific thresholds.
+
+**Scenario/Question:** 69. A sudden increase in exception count has no visible customer impact. Would you treat it as critical? Why?
+
+**Answer:** Yes, it must be investigated. It could indicate failing background jobs, ignored errors that cause silent data corruption, or resilience mechanisms (like retries) masking a failing downstream dependency.
+
+**Scenario/Question:** 70. How would you prove to auditors that every transaction request received a response?
+
+**Answer:** Use access logs at the API Gateway level to record every incoming request and outgoing response, storing them in a secure, immutable log management system (e.g., Splunk).
+
+**Scenario/Question:** 71. How would you monitor cache effectiveness in production?
+
+**Answer:** Track the cache hit ratio (Hits / (Hits + Misses)), eviction rates, memory usage, and latency differences between cache hits vs cache misses using tools like Prometheus and Grafana.
+
+**Scenario/Question:** 72. What alerts would you configure for a high-value payment service?
+
+**Answer:** Alerts on API error rate spike (>1%), p99 latency threshold breach, Queue depth exceeding limits, drop in successful transaction volume (anomaly detection), and dependency health check failures.
+
+**Scenario/Question:** 73. How would you identify memory leaks that occur only after several days of uptime?
+
+**Answer:** Monitor JVM heap usage over time for a "sawtooth" pattern that trends upward. Take periodic heap dumps and analyze them with tools like Eclipse MAT to identify objects surviving multiple GC cycles.
+
+**Scenario/Question:** 74. A transaction succeeds, but metrics show it as failed. Which source of truth would you trust and why?
+
+**Answer:** Trust the database state (transaction tables) as the ultimate source of truth. Metrics are often eventually consistent or sampled and can miss data due to monitoring agent failures.
+
+**Scenario/Question:** 75. How would you build dashboards that help operations teams resolve incidents quickly?
+
+**Answer:** Build RED (Rate, Errors, Duration) dashboards. Group metrics by service, include links to related traces/logs, show dependency health, and highlight clear "Golden Signals" for immediate situational awareness.
+
