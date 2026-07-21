@@ -1,84 +1,51 @@
-# Design a Payment Processing Service
+In one interview, I was asked:
+- Design a Payment Processing System. Handle 10,000 transactions per second.
 
-## 1. Requirements
+I froze. I started talking about a REST API and a single database.
 
-**Functional**: charge a payment method, support refunds, prevent duplicate
-charges.
-**Non-functional**: strong consistency for money movement, auditability,
-security/compliance (PCI-DSS considerations), high availability.
+The interviewer stopped me.
+- What happens if your database goes down mid-transaction?
+- What if the same payment request hits your server twice due to a network retry?
 
-## 2. Capacity estimation
+I didn't know. And yes, I got rejected. But instead of moving on, I went deeper into the question and learned.
 
-Payments are typically much lower volume than reads elsewhere in a system but
-have zero tolerance for data loss or double-processing — design priorities
-here are correctness and auditability over raw throughput.
+In another interview, two weeks later, I faced the same question. I smiled and explained:
 
-## 3. API design
+ - At 10,000 TPS, you never hit the database directly. Put Kafka between your API and DB. Accept the request fast. Settle in background.
+ - If the same payment hits twice due to a network retry use an idempotency key. Check Redis before processing. Already processed? Return old result. Never run twice.
+ - If DB crashes mid-transaction use the Saga pattern. Every step has a compensating action that reverses it on failure. Money never gets lost.
 
-```http
-POST /payments   Idempotency-Key: <client-generated-uuid>
-                 { "orderId", "amount", "paymentMethodId" }
-```
+The architecture I led with:
+ - User → API Gateway → Kafka → Payment Service
+ - Idempotency Check (Redis)
+ - DB Transaction (Saga)
+ - Kafka absorbs traffic spikes no direct DB hammering
+ - Saga handles partial failures with automatic rollback
 
-## 4. Data model
+Interviewer doesn't test whether you can build a payment system.
+They test whether you understand what happens when it breaks.
 
-```text
-payments(id, order_id, amount, status, idempotency_key UNIQUE, created_at)
-```
+our payment service is processing 10,000 transactions per second. Suddenly response time jumps from 20ms to 8 seconds. No errors in logs. No alerts fired. Business is losing money every second. How do you debug this?
 
-## 5. High-level architecture
+This question separates tutorial developers from production engineers.
+STAR Framework Answer (with real project reflection)
 
-```text
-Client -> Payment API -> Idempotency check -> Payment gateway (Stripe/etc.)
-                                             -> DB (transactional write)
-                                             -> Outbox -> downstream events
-```
+Situation: In production, our payment service response time spiked from 20ms to 8 seconds during peak traffic. No exceptions in logs. No OOM errors. No infrastructure alerts. But transactions were timing out and customers were getting charged without order confirmation.
 
-## 6. Detailed components
+Task: As the backend engineer on call, my task was to identify the root cause across the entire request chain without taking the service down and restore normal response times within minutes.
 
-A unique constraint on `idempotency_key` at the database level is the actual
-safety net — even if application logic has a bug, the DB will reject a
-duplicate charge attempt with the same key.
+Action: First I checked what changed. Recent deployments. Config changes. Traffic patterns. Nothing obvious. Then I followed the request.
 
-## 7. Scalability
+Step 1: Check thread pool ExecutorService thread pool was at 100% utilization. All threads waiting. No threads available to process new requests. This was the symptom not the cause.
 
-Payments volume is rarely the bottleneck; the external payment gateway's rate
-limits usually are — batch or queue if you ever need to exceed provider limits.
+Step 2: Find what threads were waiting on Thread dump showed all threads blocked on database connection pool. HikariCP pool size was 10. All 10 connections held open. None being released.
 
-## 8. Reliability
+Step 3: Find why connections weren't releasing One specific query introduced in last deployment. Missing index on a foreign key column. Full table scan on every transaction. 100ms query became 7 second query under load. Connection held for 7 seconds per transaction. Pool exhausted in seconds.
 
-Use the outbox pattern to publish "payment succeeded" events reliably in the
-same transaction as the DB write — never publish the event as a separate,
-un-transactional step after commit.
+Step 4: Immediate fix Increased connection pool size temporarily bought 10 minutes. Added database index query dropped from 7 seconds to 8ms. Thread pool cleared instantly. Response time back to 20ms.
 
-## 9. Security
+Step 5: Permanent fix Added query performance testing to CI/CD pipeline. EXPLAIN ANALYZE on every new query before deployment. Connection pool monitoring alert at 70% utilization. Never caught this way again.
 
-PCI-DSS scope reduction: never store raw card numbers — use the payment
-gateway's tokenization so your own systems only ever see tokens, not real
-card data.
+Result: Service restored in 11 minutes. Root cause identified and fixed permanently. Incident led to mandatory query review process for all future deployments. Zero recurrence in 14 months.
 
-## 10. Observability
-
-Track payment success/failure rate, gateway latency, and reconciliation
-discrepancies between your records and the gateway's records (run a
-scheduled reconciliation job).
-
-## 11. Bottlenecks
-
-Duplicate payment scenario: two concurrent requests for the same order. This
-is solved with the idempotency key's DB-level uniqueness constraint plus a
-row-level lock or optimistic locking on the order during charge processing.
-
-## 12. Trade-offs
-
-Synchronous charge (wait for gateway response) is simpler but ties up a
-request thread for the gateway's latency; async processing with a status
-polling/webhook model scales better but adds complexity for the client.
-
-## 13. Interview summary
-
-"The core problem is preventing double charges under concurrent retries. A
-unique DB constraint on a client-supplied idempotency key is the actual
-enforcement point — everything else, like the outbox pattern for reliably
-publishing payment events, exists to support that core guarantee without
-introducing a separate way to duplicate work."
+The concepts behind this answer thread pools, connection pooling, query optimization, HikariCP internals.

@@ -29,3 +29,25 @@ Direct (exact key), Fanout (broadcast), Topic (wildcard), Headers-based routing.
 
 ## Q40: How do you ensure message idempotency in an event-driven system?
 Event ID deduplication table, UUID per event, idempotent handlers, TTL cleanup.
+
+
+𝗞𝗮𝗳𝗸𝗮 𝗮𝗻𝗱 𝗠𝗲𝘀𝘀𝗮𝗴𝗶𝗻𝗴
+ - Why Kafka over RabbitMQ? When would you choose RabbitMQ?
+ - Consumer crashes mid-processing. Message already consumed. What happens?
+ - How do you maintain message ordering across partitions?
+ - What is idempotency in distributed systems and why does it matter?
+
+KAFKA AND MESSAGING:
+1. Why Kafka instead of RabbitMQ.
+2. How partitions work.
+3. Consumer crashes mid-batch. Now what.
+4. How you keep message ordering.
+5. Idempotency in distributed systems.
+6. Dead letter queues. When and why.
+
+Kafka and Messaging
+1. Why Kafka over RabbitMQ? When would you choose RabbitMQ?
+2. How do Kafka partitions work internally?
+3. Consumer crashes mid-processing. Message already consumed. What happens?
+4. How do you maintain message ordering across partitions?
+5. What is idempotency in distributed systems and why does it matter?

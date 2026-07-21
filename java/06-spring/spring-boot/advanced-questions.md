@@ -146,3 +146,37 @@ Group configurations for different environments (dev, prod). Active with `spring
 
 ## Q10: What is application.properties vs application.yml? Which is preferred?
 Both externalize config. `.properties` is flat, `.yml` supports hierarchical structure and is often preferred for readability.
+
+
+𝗦𝗽𝗿𝗶𝗻𝗴 𝗕𝗼𝗼𝘁 𝗮𝗻𝗱 𝗠𝗶𝗰𝗿𝗼𝘀𝗲𝗿𝘃𝗶𝗰𝗲𝘀
+ - How does @Transactional work internally? Where does it silently fail?
+ - What happens inside Spring Boot during startup?
+ - What is the difference between @Component, @Service and @Repository?
+ - How does Dependency Injection work internally in Spring?
+ - RestTemplate vs WebClient when do you choose which?
+ - How do you implement Global Exception Handling in Spring Boot?
+ - What is the difference between monolithic and microservices architecture?
+ - How do microservices communicate? When REST, when Kafka?
+
+Spring Boot
+9. @Transactional on a private method. Why does it silently fail?
+10. Two beans of same type in Spring context. How does Spring decide which to inject?
+11. Your @Async method throws an exception. Nobody catches it. What happens?
+12. Spring Boot startup taking 45 seconds. How do you diagnose and fix it?
+
+𝗦𝗽𝗿𝗶𝗻𝗴 & 𝗦𝗽𝗿𝗶𝗻𝗴 𝗕𝗼𝗼𝘁
+ - Difference between @Bean and @Component.
+ - What is AOP (Aspect-Oriented Programming)? Real-world use case?
+ - How does Spring handle circular dependencies?
+ - How to secure REST APIs (JWT, OAuth2)?
+ - How does Spring Boot auto-configuration work?
+ - How does Spring Boot manage externalized configuration (application .properties vs application .yml)?
+ - What is the difference between ApplicationContext and BeanFactory?
+ - Scenario Based: You are designing an order management system where inventory update, payment deduction, and invoice generation must happen as independent services. How would you use Spring events/AOP to achieve this?
+
+Spring Boot and Microservices
+1. How does @Transactional work internally? Where does it silently fail
+2. RestTemplate vs WebClient when do you choose which?
+3. How do microservices communicate? When REST, when Kafka?
+4. What is API Gateway and why is it required?
+5. How do you implement Global Exception Handling in Spring Boot?

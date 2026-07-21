@@ -1,89 +1,67 @@
-# Design a Rate Limiter
+A rate limiter is the most underestimated system design question.
 
-## 1. Requirements
+Easy to describe. Brutal to get right.
 
-**Functional**: limit each client to N requests per time window; return 429
-when exceeded.
-**Non-functional**: low added latency, works correctly across multiple API
-server instances (not just in-memory per-instance).
+The ask sounds too simple.
+Cap each user at 100 requests per minute.
+Most engineers write the counter and call it done.
 
-## 2. Capacity estimation
+That version works on your laptop.
+It dies in production.
 
-Rate limiter state needs to be checked on every single request, so it must be
-extremely fast (sub-millisecond) and shared across all API instances — this
-points strongly toward an in-memory data store like Redis rather than a
-relational DB for the counter state.
+Here is what actually breaks it.
 
-## 3. API design
+THE NAIVE APPROACH:
+- Keep a counter per user in memory
+- Increment on every request
+- Reset it each minute
+- Over the limit, reject
 
-Not a public API itself — it's typically a piece of middleware/library used
-by other services, keyed by client ID or API key.
+Clean. Simple. Wrong at scale.
 
-## 4. Data model (in Redis)
+THE REAL PROBLEMS:
 
-```text
-key: rate_limit:{client_id}:{window_start}
-value: request count
-TTL: window duration
-```
+1. Your counter lives on one server
+ - You scale to 50 servers behind a load balancer.
+ - Each one keeps its own counter.
+ - The user hits 100 on every single server.
+ - Your "100 per minute" is now 5,000 per minute.
+ - Fix: Move the counter to Redis. Every server checks the same one.
 
-## 5. High-level architecture
+2. The window boundary is a loophole
+ - Your window resets at the top of each minute.
+ - User sends 100 at 11:00:59.
+ - Then 100 more at 11:01:00.
+ - 200 requests in two seconds. The limit said 100.
+ - Fix: Sliding window. Weight the last window into the current one.
 
-```text
-Client -> API Gateway (rate limit check against Redis) -> Backend service
-```
+3. Two requests read the same count
+ - Request A reads count = 99.
+ - Request B reads 99 at the same instant.
+ - Both think they are under. Both write 100.
+ - One request slipped straight past your limit.
+ - Fix: Use an atomic increment. Each request gets its own number back. No two ever collide.
 
-## 6. Detailed components — algorithm choice
+4. Redis becomes the thing that kills you
+ - Every request now leans on Redis.
+ - Redis stalls for one second. Your whole API stalls with it.
+ - Fix: Redis cluster with replicas. And decide now. If Redis dies, do you block everyone or let everyone through?
 
-```text
-Token bucket: allows bursts up to bucket size, refills at a steady rate.
-              Good general-purpose choice.
-Sliding window log: most accurate, but stores a timestamp per request -> more
-              memory.
-Sliding window counter: approximates sliding window with much less memory by
-              weighting the previous window's count.
-```
+The architecture that holds:
+Request to API Gateway to Redis to Service.
+- API Gateway rejects with 429 the moment a user goes over
+- Redis holds one shared counter per user, same across all 50 servers
+- The increment is atomic, so no request slips through the cracks
+- Your service only ever sees traffic that already passed the limit
 
-## 7. Scalability
+The follow-up that catches people:
+ - Redis goes down at peak traffic. Now what?
+ - You fail open or you fail closed.
+ - Fail open: let requests through, protect availability.
+ - Fail closed: block them, protect the system behind you.
+ - Most APIs fail open. You would rather serve traffic than take yourself down over a counter.
 
-Redis (or similar) as a shared, fast store lets rate limit state work
-correctly across many stateless API instances behind a load balancer — a
-purely in-process counter would be wrong the moment you have more than one
-instance.
+A rate limiter is not about counting requests.
+It is about counting correctly when 50 servers count at once.
 
-## 8. Reliability
-
-If Redis is briefly unavailable, decide explicitly: fail open (allow requests,
-risk abuse) or fail closed (reject requests, risk false positives) — this is a
-genuine business decision, not just a technical one.
-
-## 9. Security
-
-Rate limiting itself is a security control (prevents abuse/DoS); ensure the
-client identifier used as the rate-limit key can't be trivially spoofed.
-
-## 10. Observability
-
-Track rejection rate per client, and alert on a sudden spike in 429s, which
-often signals either an abusive client or a legitimate client whose limits
-need adjusting.
-
-## 11. Bottlenecks
-
-A single hot key (one very high-volume client) could still create Redis
-hotspotting even though overall load is distributed — consider local
-pre-checks or sharding the counter for extreme cases.
-
-## 12. Trade-offs
-
-Token bucket is simple and allows reasonable bursts; sliding window counter
-gives more accuracy with modest memory cost; sliding window log gives perfect
-accuracy at real memory cost — pick based on how much burst tolerance and
-precision the product actually needs.
-
-## 13. Interview summary
-
-"I'd use a shared Redis store (not in-process state) since rate limits must
-be consistent across multiple API instances, implement token bucket for
-general-purpose burst tolerance, and make fail-open vs fail-closed on a Redis
-outage an explicit decision rather than an accident."
+Most engineers stop at the in-memory counter. The ones who get the offer know why it falls apart.

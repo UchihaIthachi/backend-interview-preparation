@@ -30,3 +30,19 @@
 
 **Scenario/Question:** How will you handle network failures?
 
+
+
+🛡️ Resilience & Failure Handling
+ 
+A downstream service becomes slow or unresponsive. How do you prevent it from bringing down your entire application?
+When should you use Timeouts, Retries, Circuit Breakers, and Bulkheads?
+Your database connection pool is exhausted in production. What are the common causes?
+Redis becomes unavailable. Should your application fail as well? How would you design the fallback strategy?
+How do you handle cache invalidation across multiple application instances?
+
+RESILIENCE AND FAILURE:
+7. A downstream service is slow. How do you stop it taking down your whole app?
+8. When do you reach for Circuit Breaker, Retry, Timeout, and Bulkhead?
+9. Your DB connection pool is exhausted in production. Likely reasons?
+10. Redis is down. Should your app go down with it? Design the fallback.
+11. Cache invalidation across multiple running instances. How?

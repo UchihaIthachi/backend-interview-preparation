@@ -88,3 +88,75 @@ can use it at all."
 ## 10. Related topics
 
 - [JPA / N+1 problem](../java/06-spring/spring-data-jpa.md)
+
+
+## Optimistic Locking vs. Pessimistic Locking
+
+🚀 Optimistic Locking vs. Pessimistic Locking — How SQL Databases Handle Concurrent Updates 
+ 
+Have you ever wondered what happens when two users try to update the same database row at exactly the same time? 
+Without proper concurrency control, one update could overwrite the other, leading to inconsistent or incorrect data. 
+SQL databases typically solve this problem using two concurrency control strategies: Optimistic Locking and Pessimistic Locking. 
+The infographic below illustrates how each approach works. 
+ 
+✅ Optimistic Locking (Version-Based) 
+Instead of locking the row, each transaction reads the current version number. 
+When updating, the database verifies that the version hasn't changed: 
+UPDATE accounts 
+SET balance = ?, version = version + 1 
+WHERE id = ? AND version = 5; 
+If another transaction has already modified the row, the version check fails immediately. 
+Key characteristics: 
+✔ No row-level lock 
+✔ Better throughput for read-heavy systems 
+✔ Conflicts detected during UPDATE 
+✔ Application retries on failure 
+Think of it as: "Try first. If someone already changed the data, fail fast and retry." 
+ 
+🔒 Pessimistic Locking (Row-Level Lock) 
+Before modifying data, the transaction explicitly locks the row: 
+SELECT * FROM accounts 
+WHERE id = 101 
+FOR UPDATE; 
+While one transaction holds the lock: 
+Other transactions requesting the same row wait in a queue 
+They execute only after the lock is released 
+No version conflict occurs because updates happen sequentially 
+Key characteristics: 
+✔ Row locked immediately 
+✔ Other requests wait instead of failing 
+✔ Strong consistency for highly contended data 
+✔ Lower concurrency but predictable execution 
+Think of it as: "Wait your turn before making changes." 
+ 
+📌 When should you use each? 
+Choose Optimistic Locking when: 
+Conflicts are rare 
+Your application is read-heavy 
+High throughput is important 
+Retries are acceptable 
+Examples: 
+E-commerce product catalog 
+User profiles 
+Content management systems 
+Choose Pessimistic Locking when: 
+Data integrity is critical 
+Many users update the same records 
+Lost updates are unacceptable 
+Examples: 
+Banking transactions 
+Digital wallets 
+Inventory management 
+Ticket booking systems 
+ 
+💡 Key Takeaway 
+There isn't a universally "better" approach. 
+The right choice depends on your application's contention level, consistency requirements, throughput goals, and user experience. 
+Understanding these trade-offs is essential for designing scalable, reliable, and high-performance backend systems.
+
+𝗧𝗿𝗮𝗻𝘀𝗮𝗰𝘁𝗶𝗼𝗻𝘀 & 𝗗𝗮𝘁𝗮
+11. ACID - A transaction either fully commits or fully rolls back, nothing halfway
+12. Isolation Level - How much one transaction can see another's uncommitted changes
+13. Eventual Consistency - All nodes agree on the value, just not at the same instant
+14. N+1 Query - One query for the list, then one more per row, performance dies
+15. Connection Pool - Reusable DB connections so you do not open one per request

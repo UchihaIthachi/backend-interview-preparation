@@ -20,3 +20,8 @@ No answer provided yet.
 ## Question 4: What problem does `Optional` solve, and what's a common misuse of it?
 
 No answer provided yet.
+
+
+Streams & Functional Programming:
+20. What is the difference between a stream and a parallel stream? Have you used a parallel stream in a real project?
+21. Stream vs flatMap.

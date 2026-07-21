@@ -23,3 +23,15 @@
 
 **Scenario/Question:** How will you handle large-scale data processing?
 
+
+
+📈 Scale & Data Processing
+ 
+Design a rate limiting solution for an API serving millions of users.
+How would you process a 5 GB CSV file without causing an OutOfMemoryError?
+A production bug only appears under heavy traffic and cannot be reproduced locally. How do you investigate it?
+
+SCALE AND DATA:
+23. Rate limiting for an API hit by millions of users. Design it.
+24. Process a 5 GB CSV without an OutOfMemoryError. How?
+25. A bug only fires under heavy traffic, never locally. How do you catch it?

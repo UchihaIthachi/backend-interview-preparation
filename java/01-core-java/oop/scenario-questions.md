@@ -16,3 +16,14 @@
 
 **Scenario/Question:** How will you ensure safe publication of objects?
 
+
+
+Low Level Design
+ - Design a Concurrent HashMap from scratch
+ - Design a Restaurant Reservation System
+ - Design a Parking Lot System
+ - Design a Rate Limiter (class level interfaces, methods, design patterns)
+ - Apply SOLID principles, interviewer will challenge every decision
+ - Thread safety and immutability in your design
+ - Deep vs shallow cloning. When does it matter?
+ - Design a Vending Machine

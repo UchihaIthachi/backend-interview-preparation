@@ -954,3 +954,12 @@ pageContext pageContext
 page Object
 exception Throwable
 
+
+
+Interfaces & OOP:
+10. Is it possible to write private methods in an interface?
+11. How many types of methods can we write in an interface?
+12. What happens if we write two identical default methods in two different interfaces and try to implement them in a class? How to fix the issue?
+13. Explain the SOLID design principles.
+14. What are Liskov's substitutional principles? If we can replace the parent class object with a subclass, then why do we need inheritance?
+15. Explain and implement the Factory design pattern (with some modification).

@@ -44,3 +44,15 @@
 
 **Scenario/Question:** How will you debug networking issues in cluster?
 
+
+
+☸️ Kubernetes & Deployments
+ 
+Your Kubernetes pod keeps restarting, but application logs show nothing useful. How do you debug it?
+How do you deploy a new version of a Spring Boot service with zero downtime?
+What happens to in-flight requests when a pod is terminated, and how do you ensure graceful shutdown?
+
+KUBERNETES AND DEPLOYMENT:
+20. Your pod keeps restarting but the logs show nothing. Debug it.
+21. Ship a new version of a Spring Boot service with zero downtime. How?
+22. A pod is terminating. What happens to in-flight requests, and how do you shut down cleanly?

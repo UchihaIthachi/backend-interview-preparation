@@ -87,3 +87,37 @@ computing."
 
 - [Race conditions](race-conditions.md)
 - [Virtual threads](virtual-threads.md)
+
+
+## Thread Pool Internal Execution Strategy
+
+Java Backend Interview Series #11/31 | Thread Pool 
+ 
+Every Java backend application eventually reaches a point where handling tasks sequentially is no longer sufficient. Whether it's processing incoming HTTP requests, executing background jobs, sending emails, consuming Kafka messages, or calling multiple external services, creating a new thread for every task quickly becomes expensive and doesn't scale. 
+ 
+A thread pool addresses this by reusing a fixed set of worker threads instead of continuously creating and destroying them.  
+ 
+When a task is submitted to a ThreadPoolExecutor, Java doesn't immediately create a new thread every time. It follows a well-defined execution strategy: 
+ 
+Create new worker threads until the core pool size is reached. 
+Queue incoming tasks when all core threads are busy. 
+Create additional threads only if the queue is full and the maximum pool size hasn't been reached. 
+Reject new tasks using the configured Rejection Policy when both the queue and thread pool have reached their limits. 
+ 
+Another important aspect is choosing the right queue and pool configuration. A large queue may reduce thread creation but can increase request latency, whereas a small queue may improve responsiveness but create more worker threads. Finding the right balance depends on the application's workload and traffic patterns. 
+ 
+In production systems, it's generally recommended to configure ThreadPoolExecutor explicitly instead of relying solely on the convenience methods provided by Executors. This gives developers complete control over corePoolSize, maximumPoolSize, keepAliveTime, BlockingQueue, ThreadFactory, and RejectedExecutionHandler, allowing thread pools to be tuned for specific workloads. 
+ 
+Understanding these internals is one of the most common topics in Java backend interviews because thread pools directly impact application performance, scalability, and system stability. 
+ 
+💡 Interview Tip 
+One of the most frequently asked interview questions is: 
+"What happens internally when a task is submitted to a ThreadPoolExecutor?" 
+A task is submitted. If the current worker count is below corePoolSize, a new worker thread is created. 
+Otherwise, the task is placed into the BlockingQueue. 
+If the queue is full and the worker count is below maximumPoolSize, another worker thread is created. 
+If both the queue and maximum pool size are exhausted, the configured RejectedExecutionHandler determines how the task is handled. 
+ 
+Being able to explain this flow clearly often distinguishes candidates who understand concurrency from those who only know the API. 
+ 
+How do you configure thread pools in your production applications? Do you prefer using the Executors utility methods, or do you configure ThreadPoolExecutor explicitly for better control? 

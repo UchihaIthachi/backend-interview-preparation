@@ -83,3 +83,102 @@ bottleneck there is CPU cores, not thread count."
 ## 10. Related topics
 
 - [ExecutorService](executor-service.md)
+
+
+## Virtual Threads Deep Dive
+
+our Spring Boot application doesn't always need more CPU.
+
+Sometimes...
+
+It just needs fewer platform threads.
+
+One of the biggest performance improvements in modern Java isn't a new framework.
+
+It's Virtual Threads.
+
+Instead of creating thousands of heavyweight OS threads, Java 21 lets the JVM create lightweight virtual threads that are perfect for applications waiting on I/O.
+
+Think about a typical Spring Boot service.
+
+A request arrives.
+
+➡️ Validate request
+➡️ Call another REST API
+➡️ Query the database
+➡️ Read Redis
+➡️ Publish a Kafka event
+➡️ Return the response
+
+Most of that time isn't spent using the CPU.
+
+It's spent waiting.
+
+With traditional platform threads:
+
+• Each request occupies an expensive thread.
+• Thousands of concurrent requests require thousands of OS threads.
+• Context switching increases.
+• Memory usage grows rapidly.
+
+With Virtual Threads:
+
+• Each request gets its own lightweight virtual thread.
+• When waiting for I/O, the thread simply parks.
+• The carrier thread immediately starts executing another virtual thread.
+• Thousands—even tens of thousands—of concurrent requests become practical.
+
+Production Example
+
+Imagine an Order Service processing:
+
+✔ Database queries
+✔ External payment APIs
+✔ Inventory service calls
+✔ Redis lookups
+✔ Kafka publishing
+
+These are mostly I/O-bound operations.
+
+Virtual Threads can dramatically improve concurrency without rewriting your business logic.
+
+But here's the catch...
+
+Virtual Threads are NOT magic.
+
+They won't speed up CPU-intensive work like:
+
+❌ Image processing
+❌ Encryption
+❌ Large mathematical computations
+❌ Video transcoding
+
+Production Best Practices
+
+✔ Use Virtual Threads for REST APIs and microservices.
+✔ Ideal for database and HTTP calls.
+✔ Avoid holding synchronized locks for long periods.
+✔ Configure proper request timeouts.
+✔ Continue monitoring latency and thread metrics.
+✔ Benchmark before and after enabling them.
+
+The biggest mistake?
+
+Treating Virtual Threads as a replacement for good architecture.
+
+They're an execution model—not a performance shortcut.
+
+When used for the right workload, they can significantly increase concurrency while reducing infrastructure costs.
+
+Have you enabled Virtual Threads in production yet? What kind of workload saw the biggest improvement?
+
+🚀 Virtual Threads in Java (Project Loom): The Future of High-Concurrency Applications
+Modern backend systems are expected to handle thousands of concurrent requests while remaining fast, scalable, and resource-efficient.
+This is where Virtual Threads, introduced in Java 21 (Project Loom), make a significant impact.
+Instead of creating an expensive operating system thread for every request, Virtual Threads are lightweight and managed by the JVM. This allows Java applications to process a massive number of concurrent tasks while consuming far fewer system resources.
+💡 Why are Virtual Threads important?
+✅ High concurrency with minimal memory usage
+✅ Simpler synchronous programming model
+✅ Better scalability for REST APIs and microservices
+✅ Reduced overhead compared to traditional platform threads
+✅ Production-ready in Java 21+

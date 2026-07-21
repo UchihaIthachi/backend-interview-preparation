@@ -154,3 +154,20 @@ Yes – it locks on the `Class` object of the class.
 ## Question 12: Can constructors be synchronized?
 
 No – a constructor cannot be synchronized; the object isn't yet visible to other threads.
+
+
+## More Questions
+1. What is Multithreading in Java? 
+2. Difference between Process and Thread? 
+3. Thread vs Runnable interface. 
+4. Callable vs Runnable. 
+5. What is ExecutorService? 
+6. What is Thread Pool? 
+7. Fixed Thread Pool vs Cached Thread Pool. 
+8. How does Executors.newFixedThreadPool() work? 
+9. What is Future? 
+10. What is CompletableFuture? 
+11. What is Synchronization? 
+12. Why do we need synchronization? 
+13. synchronized method vs synchronized block. 
+14. What is intrinsic lock? 

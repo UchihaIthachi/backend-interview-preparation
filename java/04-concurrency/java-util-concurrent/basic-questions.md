@@ -147,3 +147,32 @@ List<Integer> full = exchanger.exchange(emptyBuffer);
 ## Question 10: What is a Condition variable?
 
 A condition associated with a `ReentrantLock`. `Lock.newCondition()` provides await/signal analogous to `wait/notify` but more flexible.
+
+
+## More Questions
+31. What are Concurrent Collections? 
+32. HashMap vs ConcurrentHashMap. 
+33. CopyOnWriteArrayList use case. 
+34. BlockingQueue vs Queue. 
+35. Producer-Consumer Problem. 
+36. CountDownLatch vs CyclicBarrier. 
+37. What is Semaphore? 
+38. What is Phaser? 
+39. wait() vs sleep(). 
+40. wait() vs notify() vs notifyAll(). 
+41. What is ForkJoinPool? 
+42. Parallel Stream in Java. 
+43. How does CompletableFuture improve performance? 
+44. How do you handle exceptions in CompletableFuture? 
+45. ThreadLocal use cases. 
+46. Daemon Thread vs User Thread. 
+47. How does JVM schedule threads? 
+48. How do you debug multithreading issues? 
+49. Real-world use cases of multithreading in Spring Boot applications. 
+50. Explain a production issue related to multithreading that you solved.
+
+Concurrency & Multithreading:
+16. Diff between synchronized keyword and ReentrantLock. What is the trade-off?
+17. What is a volatile keyword?
+18. What is the difference between the volatile keyword and the Atomic class (AtomicInteger & AtomicFloat)?
+19. Explain CompletableFuture methods.

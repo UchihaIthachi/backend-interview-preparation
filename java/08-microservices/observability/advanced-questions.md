@@ -20,3 +20,10 @@ Define SLI (error rate, latency p99); burn rate alerts; multi-window alerting (1
 
 ## Q72: How do you debug a performance issue in production microservices without reproducing locally?
 Async profiler, JFR, heap dump analysis, distributed trace sampling, thread dump.
+
+
+PRODUCTION:
+1. Deploying microservices with Docker.
+2. Circuit breaker.
+3. Rate limiting.
+4. Tracing one request across six services.

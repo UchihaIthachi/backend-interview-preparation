@@ -79,3 +79,9 @@ thread pool saturation and downstream latency before assuming any one cause."
 ## 10. Related topics
 
 - [JVM memory](memory-model.md)
+
+
+JVM and Memory
+6. Your app ran fine for 30 days. Crashed with OutOfMemoryError. No code changes. What happened?
+7. GC is running every 30 seconds. Application pauses for 2 seconds each time. How do you fix it?
+8. When would you choose G1GC over ZGC in production?

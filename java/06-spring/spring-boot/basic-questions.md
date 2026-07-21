@@ -59,3 +59,23 @@ Shows the application’s health status, including dependencies like databases. 
 
 ## Q20: How do you implement caching in Spring Boot?
 Use `spring-boot-starter-cache`, enable it with `@EnableCaching`, and annotate methods with `@Cacheable`.
+
+
+Spring Framework & Spring Boot:
+22. Spring Container internal working.
+23. Explain Bean Lifecycle.
+24. What is @EnableAutoConfiguration?
+25. What is @Qualifier and what is the difference between @Primary and @Qualifier?
+26. Diff b/w IOC and Dependency Injection.
+27. What is Dependency Injection and its types?
+28. What is a spring profile, and how did you use it?
+29. What is the difference between Path Variable and Request Params?
+30. How does the @Transactional annotation work?
+31. What is fetch type (Lazy and Eager Loading)?
+
+Maven and Build
+ - What is a Maven build?
+ - What does mvn clean install do?
+ - How do you push code to production?
+ - What is code coverage and line coverage?
+ - How do you improve code coverage when build fails?

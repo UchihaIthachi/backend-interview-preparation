@@ -39,3 +39,54 @@ Database migration tools for versioned schema evolution. Auto-configured when on
 
 ## Q43: What is Optimistic vs Pessimistic locking in JPA?
 Optimistic uses `@Version` to detect concurrent mods. Pessimistic acquires DB lock on read (`PESSIMISTIC_WRITE`).
+
+
+Spring @Transactional 
+ 
+16. How does @Transactional work internally? 
+17. Why does @Transactional sometimes not work? 
+18. What exceptions trigger transaction rollback? 
+19. What is the difference between REQUIRED and REQUIRES_NEW? 
+20. Explain all transaction propagation types. 
+21. What is transaction isolation? 
+22. Explain all isolation levels. 
+23. What causes dirty reads? 
+24. What causes phantom reads? 
+25. Why should API calls be avoided inside transactions? 
+26. What happens during nested transactions? 
+27. What is transaction synchronization? 
+28. How do you debug transaction issues? 
+29. What is the self-invocation problem? 
+30. How does Spring use proxies for transaction management?
+
+𝗗𝗮𝘁𝗮𝗯𝗮𝘀𝗲 𝗮𝗻𝗱 𝗝𝗣𝗔
+ - What is the N+1 problem? How do you detect and fix it?
+ - Two transactions updating same row simultaneously. One silently overwrites. How do you prevent this?
+ - First level vs second level cache in Hibernate what is the difference?
+ - How does indexing work? When does an index hurt performance?
+ - What are ACID properties? Explain with a banking transaction example.
+
+DATABASE AND JPA:
+1. First-level vs second-level cache.
+2. The N+1 problem.
+3. How you find and fix a slow query.
+4. How you handle concurrent updates.
+
+Database and JPA
+13. Lazy loading throws LazyInitializationException in production but not in dev. Why?
+14. Your JPA query works fine with 100 rows. Takes 45 seconds with 1 million rows. What is wrong?
+15. Two transactions updating same row simultaneously. One silently overwrites the other. How do you prevent it?
+
+𝗝𝗣𝗔 / 𝗛𝗶𝗯𝗲𝗿𝗻𝗮𝘁𝗲
+ - Difference between get() and load() in Hibernate.
+ - How does Hibernate manage caching (1st level vs 2nd level cache)?
+ - How do you handle optimistic vs pessimistic locking in JPA?
+ - Explain dirty checking in Hibernate.
+ - Entity lifecycle states (Transient, Persistent, Detached, Removed)
+ - Scenario Based: You have a product catalog service where multiple users can update stock quantity at the same time. How would you use JPA locking to prevent inconsistent data?
+
+Database and JPA
+1. First level vs second level cache in Hibernate what is the difference?
+2. Your JPA query works fine locally. Times out in production. Why?
+3. Two transactions updating same row simultaneously. One silently overwrites. How do you prevent this?
+4. N+1 problem how do you detect it and fix it without rewriting everything?

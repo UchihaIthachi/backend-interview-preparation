@@ -133,3 +133,22 @@ Sizing thread pools depends on whether work is CPU-bound or I/O-bound:
 ## Question 10: Why can `CompletableFuture` chains cause thread starvation, and how do you avoid it?
 
 Starvation can occur if all threads in the common pool are blocked waiting for other stages to complete, or if nested asynchronous stages run out of available threads to execute. To avoid this, use a dedicated `ExecutorService` for distinct or heavily blocking operations rather than relying entirely on the default `ForkJoinPool.commonPool()`.
+
+
+## More Questions
+15. What is ReentrantLock? 
+16. synchronized vs ReentrantLock. 
+17. What is ReadWriteLock? 
+18. What is StampedLock? 
+19. What is Volatile keyword? 
+20. Volatile vs synchronized. 
+21. What is AtomicInteger? 
+22. Atomic classes vs synchronized. 
+23. What is CAS (Compare And Swap)? 
+24. What is Race Condition? 
+25. What is Deadlock? 
+26. How do you detect Deadlocks? 
+27. How do you prevent Deadlocks? 
+28. What is Livelock? 
+29. What is Starvation? 
+30. What is Thread Safety? 

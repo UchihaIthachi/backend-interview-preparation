@@ -44,3 +44,11 @@ Ideal for workflows that:
    Workflow: Data collection → Cleaning → Feature selection → Model training → Inference → Logging. Orchestrators manage complex ML pipelines, ensure proper sequencing, handle GPU/resource scaling, and manage high-inference loads. 
 3. **AI Agents** 
    Workflow: Multiple agents performing independent tasks (top results, info gathering, shipping optimization). Orchestrators manage sequencing, data flow, resource allocation, retries, and performance monitoring for hundreds of agent calls.
+
+
+𝗗𝗶𝘀𝘁𝗿𝗶𝗯𝘂𝘁𝗲𝗱 𝗦𝘆𝘀𝘁𝗲𝗺𝘀
+21. Idempotency - The same request sent twice has the same effect as sending it once
+22. Saga - Break one transaction into steps, each with its own compensating undo
+23. Circuit Breaker - Stop calling a failing service before it drags you down too
+24. Backpressure - When downstream is slow, push back instead of piling up requests
+25. CAP Theorem - Under a partition you pick consistency or availability, not both

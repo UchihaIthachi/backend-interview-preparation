@@ -931,3 +931,10 @@ for (int i = 1; i <= count; i++) {
 ```
 
 `ResultSetMetaData` describes the query result, which may include aliases, expressions, or joined columns. It does not necessarily describe every column in the underlying database table.
+
+
+Collections
+ - What is the difference between HashMap and Hashtable?
+ - Why does Hashtable not allow null keys or values?
+ - What is load factor in HashMap?
+ - What does the default load factor 0.75 mean?
