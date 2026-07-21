@@ -23,3 +23,5 @@ See [`code-examples/`](code-examples/) for runnable snippets referenced from the
 JavaScript DSA solutions live under
 [`../dsa/javascript-solutions/`](../dsa/javascript-solutions/), one folder per
 problem, alongside the Java and Go solutions.
+- [Objects](03-objects/README.md)
+- [DOM](04-dom/README.md)

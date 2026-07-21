@@ -1,6 +1,5 @@
-# 07 Nodejs/Runtime
+# Component Lifecycle
 
 ## Files
 
-- [Theory](theory.md)
 - [Basic Questions](basic-questions.md)

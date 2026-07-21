@@ -1,6 +1,5 @@
-# 07 Nodejs/Runtime
+# Dom Concepts
 
 ## Files
 
-- [Theory](theory.md)
 - [Basic Questions](basic-questions.md)
