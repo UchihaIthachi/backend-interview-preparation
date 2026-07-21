@@ -13,6 +13,13 @@ Before Spring Boot, wiring a basic web app required substantial boilerplate
 configuration. Auto-configuration applies sensible defaults conditionally,
 only when relevant libraries are present and no conflicting bean already exists.
 
+Key features include:
+- **Auto-Configuration:** Automatically sets up beans based on dependencies.
+- **Starters:** Pre-packaged dependencies for specific use cases (e.g., `spring-boot-starter-web` for REST APIs).
+- **Embedded Servers:** Includes Tomcat, Jetty, or Undertow for instant deployment.
+- **Spring Boot Actuator:** Provides endpoints like `/health` and `/metrics` for monitoring.
+- **Spring Boot CLI:** Run apps or scripts from the command line.
+
 ## 3. How it works — startup flow
 
 ```text

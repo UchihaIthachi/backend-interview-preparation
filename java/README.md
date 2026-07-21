@@ -9,6 +9,7 @@
 - [05 JVM](05-jvm/) — memory model, GC, class loading
 - [06 Spring](06-spring/) — core, boot, REST, JPA, security
 - [07 Design Patterns](07-design-patterns/) — patterns used in backend systems
+- [08 Microservices](08-microservices/) — architecture, discovery, gateway, resilience, messaging
 
 ## Code examples
 

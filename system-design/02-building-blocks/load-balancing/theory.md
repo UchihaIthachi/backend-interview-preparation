@@ -2,9 +2,15 @@
 
 ## Load balancers
 
-Distribute incoming requests across multiple backend instances. Algorithms:
-round robin, least connections, consistent hashing (useful when you want the
-same client/key to consistently hit the same backend, e.g. for caching).
+Distribute incoming requests across multiple backend instances to ensure optimal utilization, prevent overload on any single server, and improve scalability, reliability, and performance. 
+
+Algorithms:
+- **Round Robin:** Requests are distributed across servers in a circular order, ensuring a fair distribution. However, it doesn’t consider each server’s current workload.
+- **Least Connections:** Requests are sent to the server with the fewest active connections, aiming to balance the load evenly among servers.
+- **Least Time:** Requests are directed to the server with the fastest response time and the fewest active connections. This algorithm prioritizes efficiency and responsiveness.
+- **Hash / Consistent Hashing:** Requests are distributed based on a unique code derived from the request (like client IP or URL). This ensures consistency, useful for maintaining session persistence or cache-friendly load balancing.
+- **Random:** Requests are randomly assigned to available servers. Simple, but may lead to uneven distribution.
+- **Random with Two Choices:** Requests are randomly assigned to two servers, and then the less loaded one is selected, reducing the risk of overloading a single server.
 
 ## API gateways
 
