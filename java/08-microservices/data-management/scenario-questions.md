@@ -1,160 +1,1591 @@
-# Scenario-based Questions
+# Scenario-Based Questions — Transactions, Bulk Processing, Consistency, and Scale
 
-**Scenario/Question:** Transaction Failure A multi-step transaction fails midway. How do you ensure rollback? How would you handle distributed transactions?
+The supplied material covers distributed transactions, Saga coordination, idempotency, large-file processing, NoSQL design, high-traffic debugging, banking consistency, and restartable batch processing. The repeated questions are consolidated and technically corrected below.
 
-**Scenario/Question:** Bulk Processing You need to process millions of records. How do you design it efficiently?
+---
 
-**Scenario:** You need to process bulk uploads (e.g., CSV with 1M records).
-**Questions:** Would you process synchronously or asynchronously? How would you design retry and failure handling? Would you use event-driven architecture?
+# 1. A Multi-Step Transaction Fails Midway. How Do You Ensure Rollback?
 
-**Scenario/Question:** How will you ensure data consistency across services?
+The answer depends on whether all steps use the **same transactional resource** or span several independent systems.
 
-**Scenario/Question:** How will you handle distributed transactions?
+## Case 1: One service and one database
 
-**Scenario/Question:** How will you implement idempotency in distributed systems?
+Use a normal local database transaction:
 
-**Scenario/Question:** How will you handle distributed transactions without 2PC?
+```java
+@Service
+public class TransferService {
 
-**Scenario/Question:** How will you implement saga pattern?
+    private final AccountRepository accountRepository;
 
-**Scenario/Question:** How will you design NoSQL schema?
+    public TransferService(AccountRepository accountRepository) {
+        this.accountRepository = accountRepository;
+    }
 
-**Scenario/Question:** How will you handle transactions in distributed DB?
+    @Transactional
+    public void transfer(
+            long sourceAccountId,
+            long destinationAccountId,
+            BigDecimal amount
+    ) {
+        Account source = accountRepository.findByIdForUpdate(sourceAccountId)
+                .orElseThrow(AccountNotFoundException::new);
 
-**Scenario/Question:** How will you handle large-scale data processing?
+        Account destination = accountRepository.findByIdForUpdate(destinationAccountId)
+                .orElseThrow(AccountNotFoundException::new);
 
+        source.debit(amount);
+        destination.credit(amount);
+    }
+}
+```
 
+If the credit operation throws an unchecked exception, Spring marks the transaction for rollback and neither balance change is committed.
 
-📈 Scale & Data Processing
- 
-Design a rate limiting solution for an API serving millions of users.
-How would you process a 5 GB CSV file without causing an OutOfMemoryError?
-A production bug only appears under heavy traffic and cannot be reproduced locally. How do you investigate it?
+## Important requirements
 
-SCALE AND DATA:
-23. Rate limiting for an API hit by millions of users. Design it.
-24. Process a 5 GB CSV without an OutOfMemoryError. How?
-25. A bug only fires under heavy traffic, never locally. How do you catch it?
+- Keep the transaction short.
+- Do not call remote services while holding database locks.
+- Lock rows in a consistent order to reduce deadlocks.
+- Do not return success until the transaction commits.
+- Use decimal types appropriate for money; never use `double`.
 
-# Advanced Interview Questions & Answers
+---
 
-**Scenario/Question:** 1. A customer transfers ₹50,000 from Savings to Current account. Debit succeeds, but credit fails due to a database timeout. How would you ensure the customer's money is never lost or duplicated?
+## Case 2: Multiple services or databases
 
-**Answer:** Use distributed transactions (Saga pattern). If the credit fails, initiate a compensating transaction to reverse the debit. Ensure all operations are idempotent and track state transitions (PENDING, SUCCESS, FAILED) in a database.
+A local `@Transactional` annotation cannot roll back work committed by another service.
 
-**Scenario/Question:** 2. Two customers simultaneously transfer money to the same beneficiary account. One transaction overwrites the other's balance update. How would you prevent this?
+```text
+Transfer Service transaction
+        ≠
+Account Service transaction
+        ≠
+Payment Provider transaction
+```
 
-**Answer:** Use pessimistic locking (`SELECT FOR UPDATE`) or optimistic locking (version numbers) on the beneficiary account row during the balance update to ensure atomic, sequential updates.
+Use:
 
-**Scenario/Question:** 3. Your payment service receives the same UPI callback five times because the payment gateway retries. How would you ensure the customer's account is credited only once?
+```text
+Local transactions
++
+Saga workflow
++
+Transactional outbox
++
+Idempotent participants
++
+Compensating actions
++
+Reconciliation
+```
 
-**Answer:** Implement idempotency using a unique transaction ID provided by the gateway. Store processed transaction IDs in a database or cache (e.g., Redis). If a duplicate ID is received, return the previous successful response without processing it again.
+## Example distributed transfer
 
-**Scenario/Question:** 4. A transaction times out on the customer's mobile app, but the backend successfully debits the account. How should the system respond when the customer retries?
+```text
+1. Create transfer as PENDING.
+2. Debit source account.
+3. Credit destination account.
+4. Mark transfer COMPLETED.
+```
 
-**Answer:** The mobile app should include an idempotency key with the retry. The backend checks this key, sees the debit already succeeded, and returns a success response without re-debiting.
+If credit fails:
 
-**Scenario/Question:** 5. During peak salary credit hours, thousands of transactions are processed concurrently. How would you guarantee account balances remain consistent?
+```text
+Credit failed
+    ↓
+Create compensating credit for source account
+    ↓
+Mark transfer COMPENSATED
+```
 
-**Answer:** Batch the updates, use database partitioning, and apply row-level locking. Alternatively, use an event-driven architecture (like Kafka) to serialize updates to specific accounts through a single partition/consumer to avoid lock contention.
+Compensation is a **new business transaction**, not deletion of the original debit.
 
-**Scenario/Question:** 6. A customer initiates an NEFT transfer just before the banking cutoff time. The transaction reaches the processing queue after the cutoff. Should it be processed or deferred? How would you design this logic?
+---
 
-**Answer:** The logic should evaluate the timestamp of when the request was *received* at the API gateway, not when it was dequeued. If received before cutoff, process it; if after, defer it to the next cycle.
+# 2. How Do You Handle Distributed Transactions Without 2PC?
 
-**Scenario/Question:** 7. A transaction is marked "SUCCESS" in the application, but the database rollback occurs due to a late failure. How would you detect and correct such inconsistencies?
+Two-phase commit can coordinate multiple transactional participants, but it introduces:
 
-**Answer:** Implement reconciliation jobs that periodically compare application state (event logs) with the final database state. Use the Outbox pattern to ensure the database and message broker updates are atomic.
+- Coordinator dependency
+- Blocking participants
+- Long-held resources
+- Reduced availability
+- Difficult recovery
+- Tight infrastructure coupling
+- Poor support for long-running workflows
 
-**Scenario/Question:** 8. How would you design an audit trail where no employee—not even a DBA—can alter historical transaction records?
+For independently deployed microservices, a Saga is usually a better fit.
 
-**Answer:** Use an append-only, immutable datastore or a blockchain/ledger database (like Amazon QLDB). Ensure the database is write-once-read-many (WORM) and restrict update/delete permissions at the infrastructure level.
+## Recommended architecture
 
-**Scenario/Question:** 9. A fraud detection system blocks a transaction after the debit has already been committed. How would you recover without violating accounting principles?
+```text
+Service-local ACID transaction
+        ↓
+Outbox event
+        ↓
+Message broker
+        ↓
+Next Saga participant
+        ↓
+Idempotent local transaction
+```
 
-**Answer:** Execute a compensating transaction (a new credit entry) reversing the original debit, referencing the original transaction ID, rather than deleting or modifying the original debit record.
+## Required components
 
-**Scenario/Question:** 10. A customer disputes a transaction from six months ago. What information would your backend need to reconstruct exactly what happened?
+### Local transaction
 
-**Answer:** Immutable audit logs containing the request payload, idempotency key, timestamp, client IP, device ID, authentication context, and exact state changes of the accounts involved.
+Each service modifies only its own database.
 
-**Scenario/Question:** 11. How would you prevent two different banking channels (mobile app and branch system) from processing conflicting updates to the same account simultaneously?
+### Transactional outbox
 
-**Answer:** Use a centralized transaction coordinator or distributed locking (e.g., Redis Redlock) tied to the account ID. Optimistic locking on the database row is also essential.
+The business update and outgoing event are committed together:
 
-**Scenario/Question:** 12. A transaction remains in "PROCESSING" for several hours due to an external dependency failure. How should the backend recover automatically?
+```text
+Business table update
++
+Outbox row
+=
+One local database transaction
+```
 
-**Answer:** A background sweeping job should periodically check for stale "PROCESSING" transactions, query the external system for the final status (using a status API), and update the internal state accordingly.
+### Idempotent consumer
 
-**Scenario/Question:** 13. How would you reconcile daily account balances if one microservice was unavailable for two hours?
+A retried or redelivered message must not repeat the business effect.
 
-**Answer:** Rely on an event-driven architecture where missed events are stored in a persistent queue (like Kafka). Once the service recovers, it processes the backlog to achieve eventual consistency. A daily end-of-day batch job performs a final reconciliation against the source of truth.
+### Saga state
 
-**Scenario/Question:** 14. A database replication delay causes stale balance reads. How would you prevent customers from making decisions based on outdated information?
+Persist workflow progress:
 
-**Answer:** Route balance read queries to the primary (writer) database immediately after a write (read-your-own-writes consistency). Alternatively, include a version or timestamp in the read response to indicate data freshness.
+```text
+PENDING
+DEBIT_COMPLETED
+CREDIT_PENDING
+COMPLETED
+COMPENSATION_PENDING
+COMPENSATED
+MANUAL_REVIEW_REQUIRED
+```
 
-**Scenario/Question:** 15. How would you implement transaction rollback when some downstream systems do not support rollback?
+### Reconciliation
 
-**Answer:** Use the Saga pattern with compensating transactions. For downstream systems that cannot be rolled back (e.g., sending an SMS), ensure they are the final step in the transaction, or send a subsequent 'correction' notification if possible.
+A scheduled process identifies workflows that remain incomplete beyond an expected period.
 
-**Scenario/Question:** 46. An overnight interest calculation job crashes after processing 70% of accounts. How would you restart it without recalculating completed accounts?
+---
 
-**Answer:** Use Spring Batch or similar framework with chunk-based processing and state persistence. Store the last successfully processed offset/ID in a checkpoint table and resume from that point.
+# 3. How Do You Implement the Saga Pattern?
 
-**Scenario/Question:** 47. A batch process accidentally executes twice. How would you prevent duplicate postings?
+A Saga consists of local transactions connected by commands or events.
 
-**Answer:** Ensure the batch logic is idempotent. Use unique constraints in the database based on date, account ID, and batch run ID, or check if the target records for that specific run already exist before inserting.
+## Orchestrated Saga
 
-**Scenario/Question:** 48. How would you split a batch job processing 50 million customer records into manageable units?
+A central orchestrator controls the sequence.
 
-**Answer:** Partition the data based on account ID ranges, hash of account ID, or geographic regions. Process each partition in parallel using multiple worker nodes or threads.
+```text
+Transfer Orchestrator
+    ├── Debit source
+    ├── Credit destination
+    ├── Complete transfer
+    └── Compensate debit on failure
+```
 
-**Scenario/Question:** 49. A regulatory report must be generated before 6 AM every day. The batch is running behind schedule. What optimizations would you consider?
+### Advantages
 
-**Answer:** Optimize SQL queries (indexes, bulk reads/writes), increase parallel processing (partitioning), eliminate network chatter by processing closer to the DB, or pre-calculate intermediate aggregations during the day.
+- Workflow is visible in one place.
+- Timeout and compensation logic is explicit.
+- Easier to inspect and operate.
+- Suitable for complex financial workflows.
 
-**Scenario/Question:** 50. How would you design checkpoints for long-running batch jobs?
+### Disadvantages
 
-**Answer:** Commit state after every N records (chunk processing). Write the current primary key or offset being processed to a separate checkpoint table so that upon failure, the job queries this table to find where to resume.
+- The orchestrator may become too large.
+- Participants become coupled to orchestration commands.
+- The orchestrator needs durable state and high availability.
 
-**Scenario/Question:** 51. A batch job locks tables, blocking online banking transactions. How would you redesign it?
+---
 
-**Answer:** Read from a read-replica database, process in memory, and write back using small, incremental transactions rather than locking the entire table. Avoid long-running transactions and use row-level locks.
+## Choreographed Saga
 
-**Scenario/Question:** 52. How would you notify operations teams when batch failures require manual intervention?
+Participants react to events.
 
-**Answer:** Integrate the batch framework with monitoring tools (Prometheus/Grafana) or alerting systems (PagerDuty, Slack). Send an alert with the job name, point of failure, and exception trace.
+```text
+TransferCreated
+    ↓
+Source Account Service
+    ↓ DebitCompleted
+Destination Account Service
+    ↓ CreditCompleted
+Transfer Service
+    ↓ TransferCompleted
+```
 
-**Scenario/Question:** 53. A batch reads stale data due to replication lag. How would you ensure consistency?
+### Advantages
 
-**Answer:** Configure the batch job to read exclusively from the primary (writer) database if strict consistency is required, or pause the job until replication lag metrics fall below an acceptable threshold.
+- Looser temporal coupling
+- No central coordinator
+- Natural event-driven processing
 
-**Scenario/Question:** 54. How would you recover if the batch server crashes midway through file generation?
+### Disadvantages
 
-**Answer:** Write output to a temporary file. When complete, atomically rename/move it to the final destination. If a crash occurs, delete the incomplete temporary file and restart the job from the last checkpoint.
+- Workflow logic becomes distributed.
+- Troubleshooting is harder.
+- Cyclic event dependencies may develop.
+- Compensation paths become less obvious.
 
-**Scenario/Question:** 55. A customer requests account closure while an overnight batch is processing the account. How would you handle this conflict?
+For critical transfers with several ordered steps, orchestration is often easier to reason about.
 
-**Answer:** Implement state checks. If the account is locked/marked for closure, the batch skips it and logs it for review. Alternatively, the closure process checks for running batch locks and waits.
+---
 
-**Scenario/Question:** 56. How would you ensure batch jobs remain idempotent?
+## What if compensation fails?
 
-**Answer:** Tag every operation with a unique Job Execution ID. Before writing, verify that the operation for that ID hasn't been completed. Rely on database upserts (MERGE/ON CONFLICT) rather than plain inserts.
+Compensation must be:
 
-**Scenario/Question:** 57. A batch imports corrupted files from an external agency. How would you isolate bad records?
+- Durable
+- Idempotent
+- Retryable
+- Observable
+- Recoverable manually
 
-**Answer:** Implement a validation phase before processing. Process valid records and route invalid records to a 'Dead Letter Table' or error file, generating an alert for manual review, without failing the entire batch.
+```text
+COMPENSATION_PENDING
+    ↓
+Retry with backoff
+    ├── success → COMPENSATED
+    └── exhausted → MANUAL_REVIEW_REQUIRED
+```
 
-**Scenario/Question:** 58. How would you monitor batch progress in real time?
+Never endlessly retry without:
 
-**Answer:** Update a central job metadata table (or use Spring Batch tables) with current chunk counts. Expose these metrics via an API or export to a time-series database (Prometheus) for dashboard visualization.
+- An attempt limit
+- Backoff and jitter
+- Alerting
+- A recovery queue
+- Manual operational tooling
 
-**Scenario/Question:** 59. A file contains duplicate customer records. How would the batch detect and handle them?
+---
 
-**Answer:** Load data into a temporary staging table, use SQL window functions (like `ROW_NUMBER()`) or GROUP BY to identify and eliminate duplicates based on unique keys, and then process only the distinct records.
+# 4. Money Transfer: Debit Succeeds but Credit Fails
 
-**Scenario/Question:** 60. How would you safely deploy a new batch version while another batch is still running?
+## First design decision
 
-**Answer:** Use a blue-green deployment or feature flags. Ensure the new code version checks the current active version flag in a database. Running jobs complete on the old version, while new triggers use the new version.
+If both accounts belong to the same banking database and transaction boundary, use one local ACID transaction rather than introducing a distributed Saga unnecessarily.
 
+```text
+Same authoritative ledger
+→ one database transaction
+```
+
+If source and destination are controlled by different systems, use a pending transfer workflow.
+
+## Recommended ledger model
+
+Do not simply overwrite balances without an immutable transaction record.
+
+```text
+Transfer T-100
+
+Ledger entry 1:
+Source account    -50,000
+
+Ledger entry 2:
+Destination account +50,000
+```
+
+Balance can be calculated or maintained as a derived value, but the ledger entries remain the authoritative audit history.
+
+## Distributed version
+
+```text
+1. Create transfer T-100 as PENDING.
+2. Record source debit with reference T-100.
+3. Record destination credit with reference T-100.
+4. Mark transfer COMPLETED.
+```
+
+If the destination cannot be credited:
+
+```text
+Record source reversal referencing T-100
+Mark transfer COMPENSATED
+```
+
+The following must be unique:
+
+```text
+transfer_id + operation_type + account_id
+```
+
+This prevents duplicate debit, credit, or compensation entries.
+
+---
+
+# 5. How Do You Implement Idempotency in Distributed Systems?
+
+Idempotency ensures that repeating the same logical operation creates no additional business effect.
+
+```text
+One payment request
+=
+The same request retried five times
+=
+One payment
+```
+
+## Idempotency record
+
+```sql
+CREATE TABLE idempotency_record (
+    idempotency_key VARCHAR(100) PRIMARY KEY,
+    request_hash VARCHAR(128) NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    result_reference VARCHAR(100),
+    response_body TEXT,
+    created_at TIMESTAMP NOT NULL,
+    expires_at TIMESTAMP
+);
+```
+
+## Processing flow
+
+```text
+Receive idempotency key
+        ↓
+Calculate canonical request hash
+        ↓
+Attempt to insert PROCESSING record
+        ├── Insert succeeds
+        │      → process operation
+        │      → store result
+        │
+        └── Duplicate key
+               ├── same hash + SUCCESS
+               │      → return stored result
+               ├── same hash + PROCESSING
+               │      → return pending/conflict
+               └── different hash
+                      → reject key reuse
+```
+
+## Concurrent requests
+
+Do not use only:
+
+```text
+SELECT key
+→ not found
+→ INSERT
+```
+
+Two requests can both observe “not found.”
+
+Use a database uniqueness constraint and treat the insert as the concurrency decision.
+
+## Redis vs database
+
+Redis may help with fast duplicate detection, but for critical financial processing:
+
+```text
+Database uniqueness and durable record
+→ authoritative guarantee
+
+Redis
+→ optional acceleration
+```
+
+A Redis eviction or failure must not allow a duplicate financial posting.
+
+---
+
+# 6. Duplicate Payment-Gateway Callbacks
+
+Suppose a payment gateway sends the same callback five times.
+
+Use the gateway’s unique transaction or event identifier:
+
+```sql
+CREATE UNIQUE INDEX uk_gateway_event
+ON payment_callback(gateway_name, gateway_event_id);
+```
+
+Processing:
+
+```text
+Callback arrives
+    ↓
+Insert gateway event ID
+    ├── success → process credit
+    └── duplicate → return previously accepted response
+```
+
+Do not identify duplicates only by:
+
+- Amount
+- Timestamp
+- Customer ID
+- Account number
+
+Different legitimate payments may share those values.
+
+Also verify:
+
+- Callback signature
+- Trusted gateway identity
+- Amount and currency
+- Merchant reference
+- Expected payment state
+
+---
+
+# 7. The Client Times Out but the Backend Succeeds
+
+A timeout does not prove failure.
+
+```text
+Backend commits debit
+        ↓
+Response is lost
+        ↓
+Mobile client sees timeout
+```
+
+The client should retry with the same idempotency key.
+
+```http
+POST /transfers
+Idempotency-Key: transfer-mobile-8721
+```
+
+The backend returns the original result:
+
+```json
+{
+  "transferId": "T-100",
+  "status": "COMPLETED"
+}
+```
+
+Never tell the user to create a completely new request after an ambiguous timeout without first checking the original operation.
+
+A status endpoint is also useful:
+
+```http
+GET /transfers/by-idempotency-key/transfer-mobile-8721
+```
+
+---
+
+# 8. How Do You Process Millions of Records Efficiently?
+
+Use a **job-oriented asynchronous architecture**.
+
+```text
+Client uploads file
+        ↓
+Object storage
+        ↓
+Job record created
+        ↓
+Validation and staging
+        ↓
+Partitioned workers
+        ↓
+Chunk processing
+        ↓
+Results and error report
+```
+
+## Do not process a million-row upload synchronously
+
+A synchronous HTTP request can fail because of:
+
+- Client timeout
+- Gateway timeout
+- Pod restart
+- Long-held server thread
+- Large memory usage
+- Inability to report partial progress
+
+A better API is:
+
+```http
+POST /bulk-imports
+```
+
+Response:
+
+```http
+HTTP/1.1 202 Accepted
+```
+
+```json
+{
+  "jobId": "JOB-100",
+  "status": "QUEUED",
+  "statusUrl": "/bulk-imports/JOB-100"
+}
+```
+
+The client checks:
+
+```http
+GET /bulk-imports/JOB-100
+```
+
+---
+
+# 9. How Do You Process a 5 GB CSV Without `OutOfMemoryError`?
+
+Never load the complete file into memory.
+
+Avoid:
+
+```java
+List<String> lines = Files.readAllLines(path);
+```
+
+Use streaming and bounded chunks.
+
+```java
+public void processCsv(Path path) throws IOException {
+    int batchSize = 1_000;
+    List<CustomerRecord> batch = new ArrayList<>(batchSize);
+
+    try (BufferedReader reader = Files.newBufferedReader(path)) {
+        String line;
+
+        while ((line = reader.readLine()) != null) {
+            CustomerRecord record = parseAndValidate(line);
+            batch.add(record);
+
+            if (batch.size() == batchSize) {
+                persistBatch(batch);
+                batch.clear();
+            }
+        }
+
+        if (!batch.isEmpty()) {
+            persistBatch(batch);
+        }
+    }
+}
+```
+
+For real CSV, use a streaming CSV parser that correctly supports:
+
+- Quoted commas
+- Escaped quotes
+- Multiline fields
+- Character encoding
+- Malformed-row reporting
+
+A plain `split(",")` implementation is not safe for general CSV data.
+
+## Memory characteristics
+
+The memory requirement becomes approximately:
+
+```text
+Reader buffer
++
+Current chunk
++
+Framework overhead
+```
+
+rather than the complete 5 GB file.
+
+---
+
+## Recommended phases
+
+### 1. Upload
+
+Stream directly to object storage or disk.
+
+Do not first hold the entire multipart body in heap memory.
+
+### 2. Validate the file
+
+Check:
+
+- File size
+- Format
+- Encoding
+- Required headers
+- Malware policy
+- Row-size limit
+- Maximum column count
+
+### 3. Stage data
+
+Load rows into a staging table when database-based validation or deduplication is needed.
+
+### 4. Process in chunks
+
+```text
+Read 1,000 records
+→ validate
+→ write batch
+→ commit
+→ save checkpoint
+```
+
+### 5. Isolate invalid rows
+
+Do not fail the entire file for every bad record unless atomic all-or-nothing processing is a requirement.
+
+Produce an error file:
+
+```text
+row_number
+business_key
+error_code
+error_message
+```
+
+### 6. Finalize atomically
+
+Only mark the job `COMPLETED` after all partitions and validation rules succeed.
+
+---
+
+# 10. Retry and Failure Handling for Bulk Processing
+
+Retry only failures that are likely temporary.
+
+## Retryable failures
+
+- Temporary network failure
+- Database connection timeout
+- Broker unavailability
+- Transient external-service error
+
+## Non-retryable failures
+
+- Invalid account number
+- Missing mandatory column
+- Unsupported currency
+- Malformed date
+- Business-rule violation
+
+## Record state
+
+```text
+PENDING
+PROCESSING
+SUCCEEDED
+FAILED_RETRYABLE
+FAILED_PERMANENT
+```
+
+## Retry policy
+
+```text
+Attempt 1
+→ wait 1 second
+
+Attempt 2
+→ wait 2 seconds
+
+Attempt 3
+→ wait 4 seconds plus jitter
+
+Attempts exhausted
+→ error table or dead-letter queue
+```
+
+Do not restart a million-record job from the beginning because one record failed.
+
+---
+
+# 11. How Do You Design Checkpoints?
+
+Persist progress after each committed chunk.
+
+Checkpoint data may include:
+
+```text
+job_id
+partition_id
+last_processed_key
+rows_read
+rows_written
+rows_skipped
+current_status
+updated_at
+```
+
+Example:
+
+```sql
+UPDATE batch_partition
+SET last_processed_customer_id = :customerId,
+    rows_processed = :processed,
+    updated_at = CURRENT_TIMESTAMP
+WHERE job_id = :jobId
+  AND partition_id = :partitionId;
+```
+
+Checkpoint and business writes should be coordinated so the job does not record progress for data that was rolled back.
+
+## Prefer stable business keys
+
+For database processing:
+
+```text
+last processed primary key
+```
+
+is generally safer than:
+
+```text
+row offset
+```
+
+when the source can change.
+
+For immutable files, a byte offset or row number can be used, but the file must be identified by a stable checksum or version.
+
+---
+
+# 12. How Do You Partition 50 Million Records?
+
+Possible partitioning strategies include:
+
+## Primary-key range
+
+```text
+Worker 1: IDs 1–10,000,000
+Worker 2: IDs 10,000,001–20,000,000
+```
+
+Works when IDs are relatively evenly distributed.
+
+## Hash partitioning
+
+```text
+hash(account_id) mod 16
+```
+
+Usually produces more even distribution.
+
+## Business partitioning
+
+Examples:
+
+- Region
+- Bank branch
+- Customer segment
+- Processing date
+- Tenant
+
+## Message partitioning
+
+For account updates:
+
+```text
+Kafka message key = accountId
+```
+
+Events for one account go to the same partition and are processed in order by one consumer within the group.
+
+This can serialize per-account updates while allowing different accounts to process concurrently.
+
+---
+
+# 13. How Do You Ensure a Batch Job Is Idempotent?
+
+A batch execution ID alone is insufficient if a restarted job receives a new execution ID.
+
+Use a stable **business operation key**.
+
+Example:
+
+```sql
+CREATE UNIQUE INDEX uk_interest_posting
+ON interest_posting(
+    account_id,
+    calculation_date,
+    interest_type
+);
+```
+
+Then:
+
+```text
+Same account + same business date + same interest type
+→ only one posting
+```
+
+Possible write techniques:
+
+- Unique constraints
+- `INSERT ... ON CONFLICT`
+- `MERGE`
+- Conditional update
+- Processed-event table
+- Version comparison
+
+The job execution ID is useful for audit and tracing, but business uniqueness must be based on the actual business operation.
+
+---
+
+# 14. How Do You Handle Duplicate Records Inside a File?
+
+Use a staging table:
+
+```sql
+CREATE TABLE customer_import_staging (
+    job_id VARCHAR(50),
+    row_number BIGINT,
+    customer_reference VARCHAR(100),
+    payload JSONB
+);
+```
+
+Detect duplicates:
+
+```sql
+SELECT customer_reference, COUNT(*)
+FROM customer_import_staging
+WHERE job_id = :jobId
+GROUP BY customer_reference
+HAVING COUNT(*) > 1;
+```
+
+Or rank them:
+
+```sql
+SELECT *,
+       ROW_NUMBER() OVER (
+           PARTITION BY customer_reference
+           ORDER BY row_number
+       ) AS duplicate_rank
+FROM customer_import_staging
+WHERE job_id = :jobId;
+```
+
+The business must define which record wins:
+
+- First record
+- Last record
+- Highest version
+- Reject every duplicate
+- Merge selected fields
+
+Do not silently choose without a documented rule.
+
+---
+
+# 15. How Do You Handle Corrupted Records?
+
+Separate failures into:
+
+```text
+File-level failure
+→ invalid header, unreadable encoding, unsupported format
+
+Record-level failure
+→ one malformed or invalid row
+```
+
+For record-level errors:
+
+```text
+Valid rows
+→ continue processing
+
+Invalid rows
+→ quarantine/error table
+```
+
+Error information should include:
+
+- Job ID
+- File checksum
+- Row number
+- Business key where available
+- Validation code
+- Safe error message
+- Original row or protected reference
+
+Be careful when error files contain personal or financial information.
+
+---
+
+# 16. How Do You Handle a Batch Crash During File Generation?
+
+Write to a temporary location:
+
+```text
+report-2026-07-22.csv.part
+```
+
+After successful completion and validation, atomically rename or move it:
+
+```text
+report-2026-07-22.csv
+```
+
+Consumers should never see the `.part` file.
+
+Persist:
+
+- Job status
+- Output checksum
+- Row count
+- File size
+- Generation timestamp
+
+On restart:
+
+```text
+Incomplete temporary file
+→ delete or continue from a supported checkpoint
+```
+
+Appending to an incomplete CSV is risky unless the framework guarantees correct row and encoding boundaries.
+
+---
+
+# 17. How Do You Prevent Batch Jobs from Blocking Online Traffic?
+
+Avoid:
+
+- Full-table locks
+- Long transactions
+- Huge uncommitted updates
+- Unbounded parallelism
+- Running expensive queries on the primary during peak hours
+
+Use:
+
+- Small chunks
+- Short transactions
+- Appropriate indexes
+- Keyset pagination
+- Bounded worker counts
+- Workload throttling
+- Separate resource pools
+- Read replicas where stale reads are acceptable
+- Dedicated batch windows
+- Database workload management
+
+## Read-replica warning
+
+A read replica is not appropriate when the batch requires the latest committed data and replication lag is unacceptable.
+
+Also, “read from replica and write back later” can produce decisions based on stale state. The consistency requirement must be explicit.
+
+---
+
+# 18. NoSQL Schema Design
+
+NoSQL schemas should be designed around access patterns, partitioning, and consistency boundaries—not by directly copying normalized relational tables.
+
+## Questions to answer
+
+- What are the main reads?
+- What are the main writes?
+- Which fields change together?
+- What is the partition key?
+- Can one partition become hot?
+- What ordering is required?
+- What data can be duplicated?
+- How will duplicates be synchronized?
+- Which operations require conditional writes?
+- What is the retention policy?
+
+## Example order document
+
+```json
+{
+  "orderId": "O-100",
+  "customerId": "C-10",
+  "status": "CONFIRMED",
+  "version": 4,
+  "createdAt": "2026-07-22T10:00:00Z",
+  "items": [
+    {
+      "productId": "P-1",
+      "productName": "Keyboard",
+      "unitPrice": 100.0,
+      "quantity": 1
+    }
+  ],
+  "totals": {
+    "subtotal": 100.0,
+    "tax": 18.0,
+    "total": 118.0
+  }
+}
+```
+
+The product name and price may be intentionally duplicated as an order-time snapshot.
+
+## Avoid unbounded documents
+
+Do not place an endlessly growing list inside one document:
+
+```text
+Customer document
+└── every transaction ever created
+```
+
+Use separate transaction records or bounded buckets.
+
+## Concurrency
+
+Use conditional writes or versions:
+
+```text
+Update only if version = 4
+→ write version 5
+```
+
+Do not assume every NoSQL database provides the same transaction, consistency, indexing, or query guarantees.
+
+---
+
+# 19. Transactions in a Distributed Database
+
+The design depends on the database’s actual guarantees.
+
+Possible mechanisms include:
+
+- Single-partition atomic writes
+- Multi-document transactions
+- Conditional writes
+- Compare-and-set
+- Optimistic version checks
+- Quorum reads and writes
+- Consensus-based transactions
+
+## Design preference
+
+Keep strongly consistent operations within one partition or aggregate where possible.
+
+```text
+Account aggregate
+→ balance
+→ account state
+→ account version
+```
+
+A transaction spanning many partitions or regions is normally more expensive and less available.
+
+## Questions to clarify
+
+- Is the transaction linearizable?
+- Can reads be stale?
+- What happens during a network partition?
+- Is transaction isolation configurable?
+- What is the cross-region latency?
+- Are retries automatically performed?
+- Can a timed-out commit later succeed?
+- How are duplicate writes detected?
+
+A timeout should often be treated as **unknown outcome**, not automatic failure.
+
+---
+
+# 20. Production Bug Appears Only Under Heavy Traffic
+
+This often indicates:
+
+- Race condition
+- Lock contention
+- Pool exhaustion
+- Queue growth
+- Cache stampede
+- Thread-safety bug
+- Memory visibility problem
+- Database plan change
+- Hot key
+- Retry storm
+- GC pressure
+- Resource leak
+
+## Investigation process
+
+### 1. Capture the exact production symptom
+
+- Which endpoint?
+- Which tenant?
+- At what concurrency?
+- Which application version?
+- P95/P99 latency?
+- Error rate?
+- Request payload characteristics?
+
+### 2. Inspect saturation
+
+- Request threads
+- Executor queues
+- Database connections
+- HTTP connections
+- CPU throttling
+- Heap and GC
+- File descriptors
+- Broker lag
+- Redis latency
+- Database locks
+
+### 3. Compare fast and slow traces
+
+```text
+Normal request:
+20 ms total
+
+Slow request:
+8 seconds total
+├── DB connection wait: 5.5 seconds
+├── Query: 2.4 seconds
+└── Application code: 100 ms
+```
+
+### 4. Capture evidence during the event
+
+- Thread dumps
+- Java Flight Recorder
+- Heap histogram
+- GC logs
+- Database wait events
+- Query plans
+- Pool metrics
+- Kernel and container metrics
+
+### 5. Reproduce the traffic shape
+
+Do not test only average requests per second.
+
+Reproduce:
+
+- Burst pattern
+- Payload size distribution
+- Hot accounts or keys
+- Slow downstream dependency
+- Cache hit/miss ratio
+- Number of concurrent users
+- Retry behaviour
+- Production-like data volume
+
+### 6. Add deterministic tests
+
+For concurrency defects, use:
+
+- Repeated stress tests
+- Barriers to align threads
+- Deliberate delays around critical sections
+- Race-oriented unit tests
+- Fault injection
+- Controlled dependency latency
+
+Do not “fix” the problem only by increasing timeouts or pool sizes before locating the constrained resource.
+
+---
+
+# 21. Corrected Banking Scenarios
+
+## Scenario 1: Debit succeeds but credit fails
+
+Use one local transaction if both accounts are in the same authoritative database. For truly distributed accounts, persist a pending transfer, perform idempotent debit and credit steps, and compensate with a new reversal entry if credit cannot complete.
+
+---
+
+## Scenario 2: Concurrent credits overwrite each other
+
+Avoid read-modify-write where possible.
+
+Prefer atomic SQL:
+
+```sql
+UPDATE account
+SET balance = balance + :amount
+WHERE account_id = :accountId;
+```
+
+For additional invariants, use:
+
+- Optimistic locking
+- Pessimistic locking
+- Account-keyed event serialization
+- Immutable ledger entries
+
+---
+
+## Scenario 3: Same UPI callback arrives repeatedly
+
+Use a unique provider event or transaction ID protected by a database constraint. Validate callback authenticity and return the previously recorded result for duplicates.
+
+---
+
+## Scenario 4: Mobile timeout after successful debit
+
+Retry with the original idempotency key. Return the original transfer status instead of debiting again.
+
+---
+
+## Scenario 5: Thousands of salary credits
+
+Parallelize across different accounts while serializing or atomically updating one account’s state.
+
+Possible design:
+
+```text
+Kafka key = beneficiaryAccountId
+```
+
+Do not simply “batch all balances” if batching weakens transaction correctness.
+
+---
+
+## Scenario 6: Transfer received before cutoff but processed afterward
+
+Persist both:
+
+```text
+received_at
+processing_started_at
+```
+
+The business rule should explicitly define which timestamp determines eligibility. Use a trusted server-side timestamp—not a client-supplied clock.
+
+Also persist the applied cutoff calendar/version for later audit.
+
+---
+
+## Scenario 7: Application says SUCCESS but database rolls back
+
+The service should not expose success before commit.
+
+Correct flow:
+
+```text
+Perform database work
+→ commit succeeds
+→ return success
+```
+
+For asynchronous notifications, use an outbox after the database transaction. Reconciliation is a safety mechanism, not a substitute for correct commit ordering.
+
+---
+
+## Scenario 8: Audit trail that even a DBA cannot alter
+
+No software can absolutely guarantee immutability when one actor controls the database, operating system, backups, keys, and audit platform.
+
+Use defence in depth:
+
+- Append-only ledger
+- No update/delete permission for application roles
+- Separate audit account and infrastructure
+- WORM/object-lock retention
+- Hash chaining
+- Signed audit batches
+- External timestamping or anchoring
+- Separation of duties
+- Independent backups
+- Regular integrity verification
+
+A blockchain is not automatically required.
+
+---
+
+## Scenario 9: Fraud block after debit
+
+Record a compensating credit referencing the original debit. Do not delete or rewrite the original ledger entry.
+
+---
+
+## Scenario 10: Reconstructing a six-month-old transaction
+
+Retain:
+
+- Transaction and correlation IDs
+- Idempotency key
+- Ledger entries
+- State transitions
+- Authenticated actor or service identity
+- Received and processed timestamps
+- Source channel
+- Applied rules and configuration versions
+- External provider references
+- Safe request fingerprint
+- Relevant consent and authorization evidence
+- Audit events
+
+Avoid retaining unnecessary raw secrets, complete tokens, or sensitive payloads.
+
+---
+
+## Scenario 11: Mobile and branch update the same account
+
+Prefer database-level atomicity, optimistic locking, pessimistic locking, or per-account event serialization.
+
+A Redis lock should not be the primary correctness guarantee for the account ledger. Leases can expire while a paused process still continues. The authoritative database must reject stale or duplicate writes.
+
+---
+
+## Scenario 12: Transaction remains `PROCESSING`
+
+A sweeper should:
+
+1. Identify stale records.
+2. Acquire safe ownership of recovery work.
+3. Query the external provider using a stable reference.
+4. Update the state idempotently.
+5. Retry within a bounded policy.
+6. Escalate unresolved outcomes.
+
+Do not assume timeout means failed; the external operation may have succeeded.
+
+---
+
+## Scenario 13: Service unavailable for two hours
+
+Durable messaging allows backlog processing after recovery, but also require:
+
+- Consumer lag monitoring
+- Idempotency
+- Replay support
+- Dead-letter handling
+- Ordering policy
+- Reconciliation against the source of truth
+
+---
+
+## Scenario 14: Replica returns a stale balance
+
+For correctness-sensitive balance reads:
+
+- Read from the primary.
+- Use session consistency or read-your-writes routing.
+- Wait for a known version/LSN where supported.
+- Return a freshness/version indicator.
+- Avoid the replica for authorization of a withdrawal.
+
+---
+
+## Scenario 15: Downstream system cannot roll back
+
+Design compensation where possible. For irreversible actions:
+
+- Perform them late in the workflow.
+- Use pending/approval states.
+- Delay side effects until commit is known.
+- Send correction events when reversal is impossible.
+- Require manual review for exceptional cases.
+
+An SMS is usually a notification side effect and should not determine whether the financial transaction commits.
+
+---
+
+# 22. Corrected Batch Scenarios
+
+## Scenario 46: Job crashes after 70%
+
+Use restartable chunk processing with durable job metadata. Resume from the last committed checkpoint, not merely the last row read.
+
+---
+
+## Scenario 47: Job starts twice
+
+Use:
+
+- Scheduler-level single execution
+- Unique business-run key
+- Database constraint
+- Idempotent writes
+- Job status table
+
+Example:
+
+```text
+interest-calculation + business-date
+→ unique
+```
+
+---
+
+## Scenario 48: Process 50 million customers
+
+Partition by a stable, balanced key and use bounded parallel workers. Ensure one record cannot be processed concurrently by multiple partitions.
+
+---
+
+## Scenario 49: Regulatory report is late
+
+Investigate before only adding workers:
+
+- Critical-path duration
+- Database plan
+- Full scans
+- Sort spills
+- Network round trips
+- Serialization cost
+- Skewed partitions
+- Resource contention
+- Replication lag
+- Upstream data delay
+
+Precompute immutable daily aggregates where regulations permit.
+
+---
+
+## Scenario 50: Long-running checkpoints
+
+Checkpoint after each committed chunk. Persist the partition, business key, counters, and source-file identity.
+
+---
+
+## Scenario 51: Batch blocks online transactions
+
+Use short transactions, small batches, appropriate indexes, bounded concurrency, and workload isolation. A read replica helps only when stale reads are acceptable.
+
+---
+
+## Scenario 52: Notify operations
+
+Publish structured alerts containing:
+
+- Job name and ID
+- Environment
+- Failed partition
+- Last checkpoint
+- Failure category
+- Retry count
+- Error reference
+- Runbook link
+- Whether manual action is required
+
+Do not send secrets or full sensitive rows to chat systems.
+
+---
+
+## Scenario 53: Replica data is stale
+
+Use the primary when strict consistency is required, or start only after replication lag is below a documented threshold. Record the data snapshot or cutoff used by the batch.
+
+---
+
+## Scenario 54: Server crashes during file generation
+
+Write to a temporary file, calculate row count and checksum, then atomically publish it under the final name.
+
+---
+
+## Scenario 55: Account closure conflicts with a batch
+
+Model explicit account states:
+
+```text
+ACTIVE
+CLOSURE_PENDING
+CLOSED
+```
+
+Both operations must use atomic state transitions or locking. Merely “checking before processing” is vulnerable to a race unless the state is revalidated during the write.
+
+---
+
+## Scenario 56: Keep batches idempotent
+
+Use business uniqueness, upserts, and conditional updates. A job execution ID helps audit but does not alone prevent duplicate business postings.
+
+---
+
+## Scenario 57: Corrupted external file
+
+Validate file-level structure first. Quarantine invalid rows separately, enforce an error threshold, and stop the file when corruption suggests the source cannot be trusted.
+
+---
+
+## Scenario 58: Monitor progress
+
+Expose:
+
+- Rows read
+- Rows processed
+- Rows skipped
+- Rows failed
+- Processing rate
+- Estimated completion
+- Current partition
+- Oldest retry
+- Job and partition status
+
+Avoid updating the metadata table after every row; update periodically or per chunk.
+
+---
+
+## Scenario 59: Duplicate customer records
+
+Stage the file and deduplicate using business-defined keys. Decide whether to reject, retain first, retain last, or merge. Report the decision.
+
+---
+
+## Scenario 60: Deploy a new version while a job runs
+
+Pin each job execution to a code and configuration version.
+
+```text
+Running jobs
+→ continue on version A
+
+New jobs
+→ start on version B
+```
+
+Use:
+
+- Separate worker deployments
+- Versioned queues
+- Blue-green workers
+- Backward-compatible metadata
+- Draining before shutdown
+
+A feature flag alone may not protect a running job when its code or data model changes underneath it.
+
+---
+
+# 23. Rate Limiting at Millions-of-User Scale
+
+This topic is covered separately in depth, but the core design is:
+
+```text
+Edge/WAF
+→ coarse abuse control
+
+API Gateway
+→ tenant, client, user, and route quotas
+
+Service
+→ business-specific and concurrency limits
+```
+
+For synchronous APIs, Token Bucket is usually a strong default:
+
+```text
+Shared Redis state
++
+Atomic script
++
+Authenticated rate-limit key
++
+HTTP 429
++
+Retry-After
+```
+
+For expensive long-running operations, add a concurrency limiter. Rate per second alone does not control how many operations remain active.
+
+---
+
+# Interview-Ready Summary
+
+> For work inside one database, I rely on a short local ACID transaction and return success only after commit. Across services, I use Saga, transactional outbox, idempotent participants, compensating transactions, explicit workflow states, and reconciliation rather than expecting `@Transactional` to span the network.
+>
+> For large files, I accept the upload asynchronously, stream rather than loading the file into memory, process in bounded chunks, checkpoint after committed work, partition using stable keys, and isolate invalid rows. Every write is idempotent and protected by business-key constraints so retries or duplicate job execution do not create duplicate postings.
+>
+> In financial systems, I prefer immutable ledger entries, atomic database updates, and durable transaction references. Timeouts are treated as unknown outcomes, duplicate callbacks are deduplicated using provider identifiers, and stale workflows are recovered through status checks and reconciliation.

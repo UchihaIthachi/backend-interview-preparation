@@ -1,880 +1,1753 @@
-# Scenario-based Questions
+The attached draft contains concurrency scenarios 51–70 plus an unanswered production-deadlock question. The version below fixes the malformed code, completes the missing answer, and corrects several concurrency issues in the original examples.
 
-**Scenario/Question:** Your application has intermittent deadlocks in production - how will you detect and resolve?
+# Scenario-Based Concurrency Questions
 
-## Scenario 51: Parallel stream corrupts output due to shared mutable state 
-You convert a large list of items to a map using parallelStream(), but occasionally see missing or duplicated keys because you appended to a shared HashMap inside forEach. 
-Answer: 
-In parallel streams, avoid mutating non-thread-safe shared state. Use built-in concurrent collectors like toConcurrentMap (or a proper Collector) so accumulation is thread-safe and associative. 
+## Scenario: Your application has intermittent deadlocks in production. How will you detect and resolve them?
 
-```java
+### Answer
 
-import java.util.*;
-    import java.util.concurrent.ConcurrentMap;
-    import java.util.stream.Collectors;
-    import java.util.stream.IntStream;
-    public class ParallelStreamSafeCollect {
-    public static void main(String[] args) {
-    List<Integer> ids = IntStream.rangeClosed(1, 10000).boxed().toList();
-    // WRONG: shared HashMap with forEach in parallel // Map<Integer, String> bad = new HashMap<>();
-    // ids.parallelStream().forEach(i -> bad.put(i, "V" + i));
-    // data races! // RIGHT: use concurrent collector ConcurrentMap<Integer, String> good = ids.parallelStream() .collect(Collectors.toConcurrentMap(i -> i, i -> "V" + i));
-    System.out.println("size=" + good.size());
-    // 10000 }
-}
+I would first confirm that the problem is an actual deadlock rather than ordinary lock contention.
 
+My investigation would be:
+
+1. Capture several thread dumps a few seconds apart.
+2. Look for Java’s deadlock report and circular lock dependencies.
+3. Identify the threads, locks, and code paths involved.
+4. Use Java Flight Recorder to inspect lock contention and monitor blocking.
+5. Determine why the locks are acquired in inconsistent order.
+6. fix the locking design rather than trying to catch or ignore the problem.
+
+### Production detection
+
+Useful commands include:
+
+```bash
+jcmd <pid> Thread.print -l
 ```
 
-Reasoning to interviewer: 
-• Parallel pipelines require associative, thread-safe accumulation; mutating a shared HashMap breaks that contract. • toConcurrentMap uses a concurrent container and merges safely across threads. 
-• If you must use a custom collector, ensure it’s CONCURRENT and UNORDERED when appropriate. 
-Future scope: 
-• For ordered results, collect then sort, or use forEachOrdered (with potential performance cost). • If the operation is I/O-bound or includes blocking, prefer CompletableFuture or virtual threads over parallel streams. • Benchmark: for small datasets, sequential streams can outperform due to parallel overhead. 
+```bash
+jstack -l <pid>
+```
 
-## Scenario 52: Threads must finish initialization before main continues 
-You spin up 5 worker threads to preload caches and initialize connections. The main thread should only start serving requests after all workers report “ready”. 
-Answer: 
-I’ll use a CountDownLatch initialized with the worker count. Each worker countDown()s when done, and the main thread calls await(). This makes startup deterministic and avoids polling or sleeps. 
+A deadlock generally appears as a cycle:
+
+```text
+Thread A:
+    owns Lock 1
+    waits for Lock 2
+
+Thread B:
+    owns Lock 2
+    waits for Lock 1
+```
+
+Capture multiple dumps because one snapshot may only show temporary contention.
+
+### Programmatic detection
 
 ```java
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
+import java.util.Arrays;
 
+public final class DeadlockDetector {
+
+    private final ThreadMXBean threadMxBean =
+            ManagementFactory.getThreadMXBean();
+
+    public void checkForDeadlocks() {
+        long[] threadIds =
+                threadMxBean.findDeadlockedThreads();
+
+        if (threadIds == null) {
+            return;
+        }
+
+        ThreadInfo[] threadInfos =
+                threadMxBean.getThreadInfo(
+                        threadIds,
+                        true,
+                        true
+                );
+
+        Arrays.stream(threadInfos)
+                .forEach(System.err::println);
+    }
+}
+```
+
+`findDeadlockedThreads()` detects cycles involving both:
+
+- Intrinsic monitors used by `synchronized`
+- Ownable synchronizers such as `ReentrantLock`
+
+### Common root cause
+
+```java
+// Thread A
+synchronized (accountA) {
+    synchronized (accountB) {
+        transfer();
+    }
+}
+
+// Thread B
+synchronized (accountB) {
+    synchronized (accountA) {
+        transfer();
+    }
+}
+```
+
+The two threads acquire the same locks in opposite order.
+
+### Fix using consistent lock ordering
+
+```java
+public void transfer(
+        Account source,
+        Account destination,
+        long amount
+) {
+    Account first;
+    Account second;
+
+    if (source.id() < destination.id()) {
+        first = source;
+        second = destination;
+    } else {
+        first = destination;
+        second = source;
+    }
+
+    synchronized (first) {
+        synchronized (second) {
+            source.withdraw(amount);
+            destination.deposit(amount);
+        }
+    }
+}
+```
+
+Because every thread follows the same global order, circular waiting cannot form.
+
+### Other resolution strategies
+
+- Reduce nested locking.
+- Keep critical sections small.
+- Never perform slow network or database calls while holding a lock.
+- Use `tryLock()` with a timeout when failing or retrying is acceptable.
+- Avoid calling unknown callback code while holding internal locks.
+- Partition unrelated state behind separate locks.
+- Use message passing or single-owner processing.
+- Add timeouts, metrics, and alerts for abnormal lock-wait duration.
+
+### Important production point
+
+Java cannot safely force another thread to release a lock. An immediate production restart may be required to restore service, but the permanent solution is to correct the lock design.
+
+### Interview-ready answer
+
+> I would capture multiple thread dumps using `jcmd` or `jstack`, identify the circular dependency and lock owners, and confirm it with Java Flight Recorder or `ThreadMXBean`. I would then eliminate the cycle using consistent lock ordering, smaller critical sections, timed lock acquisition, or a design with less shared mutable state. A restart may restore service temporarily, but it does not resolve the root cause.
+
+---
+
+# Scenario 51: Parallel Stream Corrupts Output Due to Shared Mutable State
+
+## Scenario
+
+You convert a large list into a map using `parallelStream()`, but occasionally observe missing or incorrect entries because multiple threads write to a shared `HashMap`.
+
+## Incorrect implementation
+
+```java
+Map<Integer, String> result = new HashMap<>();
+
+ids.parallelStream()
+        .forEach(id ->
+                result.put(id, "V" + id)
+        );
+```
+
+`HashMap` is not thread-safe. Concurrent writes can cause lost updates or corrupt internal state.
+
+## Correct implementation
+
+```java
+import java.util.List;
+import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+public final class ParallelStreamSafeCollect {
+
+    public static void main(String[] args) {
+        List<Integer> ids =
+                IntStream.rangeClosed(1, 10_000)
+                        .boxed()
+                        .toList();
+
+        ConcurrentMap<Integer, String> result =
+                ids.parallelStream()
+                        .collect(Collectors.toConcurrentMap(
+                                Function.identity(),
+                                id -> "V" + id,
+                                (existing, replacement) ->
+                                        existing
+                        ));
+
+        System.out.println(result.size());
+    }
+}
+```
+
+The merge function is necessary when duplicate keys are possible.
+
+### Key points
+
+- Avoid modifying shared mutable containers inside parallel operations.
+- Prefer stream collectors.
+- Accumulation and combining logic must be associative.
+- `toConcurrentMap()` does not preserve encounter order.
+- `forEachOrdered()` preserves order but may reduce parallel performance.
+
+### Interview-ready answer
+
+> A parallel stream may execute multiple elements concurrently. Mutating one shared `HashMap` creates a data race. I would use `toConcurrentMap()` or another correctly designed collector instead of manually sharing mutable state.
+
+---
+
+# Scenario 52: Main Must Wait Until All Workers Finish Initialization
+
+## Scenario
+
+Five worker tasks preload caches and initialize connections. The application must not start serving requests until all workers have finished successfully.
+
+## Solution using `CountDownLatch`
+
+```java
 import java.util.concurrent.CountDownLatch;
-    class InitWorker implements Runnable {
-    private final CountDownLatch latch;
-    private final String name;
-    InitWorker(String name, CountDownLatch latch) {
-    this.name = name;
-    this.latch = latch;
-    }
-@Override public void run() {
-    try {
-    System.out.println(name + " initializing...");
-    Thread.sleep(300 + (int)(Math.random()*200));
-    // simulate work System.out.println(name + " ready");
-    }
-catch (InterruptedException e) {
-    Thread.currentThread().interrupt();
-    }
-finally {
-    latch.countDown();
-    }
-}
-}
-public class StartupLatchDemo {
-    public static void main(String[] args) throws InterruptedException {
-    CountDownLatch latch = new CountDownLatch(5);
-    for (int i=1;i<=5;i++) new Thread(new InitWorker("Worker-"+i, latch)).start();
-    latch.await();
-    // block until all ready System.out.println("All workers ready, starting server...");
-    }
-}
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
+public final class StartupCoordinator {
+
+    public static void main(String[] args)
+            throws InterruptedException {
+
+        int workerCount = 5;
+
+        CountDownLatch ready =
+                new CountDownLatch(workerCount);
+
+        AtomicReference<Throwable> failure =
+                new AtomicReference<>();
+
+        ExecutorService executor =
+                Executors.newFixedThreadPool(workerCount);
+
+        for (int index = 1; index <= workerCount; index++) {
+            String workerName = "Worker-" + index;
+
+            executor.submit(() -> {
+                try {
+                    initialize(workerName);
+                } catch (Throwable throwable) {
+                    failure.compareAndSet(null, throwable);
+                } finally {
+                    ready.countDown();
+                }
+            });
+        }
+
+        boolean completed =
+                ready.await(30, TimeUnit.SECONDS);
+
+        executor.shutdown();
+
+        if (!completed) {
+            executor.shutdownNow();
+            throw new IllegalStateException(
+                    "Initialization timed out"
+            );
+        }
+
+        if (failure.get() != null) {
+            throw new IllegalStateException(
+                    "Initialization failed",
+                    failure.get()
+            );
+        }
+
+        System.out.println(
+                "All workers are ready. Starting server."
+        );
+    }
+
+    private static void initialize(String name)
+            throws InterruptedException {
+
+        System.out.println(name + " initializing");
+        Thread.sleep(300);
+        System.out.println(name + " ready");
+    }
+}
 ```
 
-Reasoning to interviewer: 
-• CountDownLatch is a one-shot gate: once count hits zero, all await()ers proceed. • Better than Thread.sleep() because it adapts to actual work time. • Always decrement in finally to avoid hanging the system if a worker crashes. 
-Future scope: 
-• For repeated barriers, use CyclicBarrier or Phaser. • Add timeout to await() to avoid indefinite block on stuck workers. • Wrap init logic in ExecutorService with invokeAll if you need to propagate results or exceptions. 
+### Important nuance
 
-## Scenario 53: Need both parallel and sequential phases in a pipeline 
-You have 10 ETL tasks. They can all extract in parallel, but then must wait before a single sequential consolidation runs. After that, all can transform in parallel. 
-Answer: 
-I’ll use CyclicBarrier for parallel phases and coordinate the sequential phase via a barrier action. This ensures everyone stops at the end of extract, runs consolidation once, then continues. 
+Calling `countDown()` in `finally` prevents the application from waiting forever, but the application must separately record whether initialization succeeded.
+
+Otherwise, the latch can reach zero even though one worker failed.
+
+### Key points
+
+- `CountDownLatch` is a one-shot synchronization gate.
+- `await()` is better than polling or sleeping.
+- Always use a timeout in production startup logic.
+- Use `CyclicBarrier` or `Phaser` for reusable phases.
+
+### Interview-ready answer
+
+> I would initialize a `CountDownLatch` with the number of workers. Each worker decrements it in `finally`, and the main thread waits with a timeout. I would also propagate worker failures, because reaching zero only means the workers finished, not that they all succeeded.
+
+---
+
+# Scenario 53: Parallel and Sequential Phases in an ETL Pipeline
+
+## Scenario
+
+Multiple workers extract data in parallel. All extraction must complete before one consolidation step runs. Workers then transform in parallel, and loading begins only after every transformation finishes.
+
+## Solution using two barriers
 
 ```java
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-import java.util.concurrent.*;
-    class ETLWorker implements Runnable {
-    private final CyclicBarrier barrier;
-    private final int id;
-    ETLWorker(int id, CyclicBarrier barrier) {
-    this.id=id;
-    this.barrier=barrier;
+public final class EtlPipeline {
+
+    private final CyclicBarrier extractionBarrier;
+    private final CyclicBarrier transformationBarrier;
+
+    public EtlPipeline(int workers) {
+        extractionBarrier =
+                new CyclicBarrier(
+                        workers,
+                        this::consolidate
+                );
+
+        transformationBarrier =
+                new CyclicBarrier(workers);
     }
-@Override public void run() {
-    try {
-    extract();
-    barrier.await();
-    // sync after extract transform();
-    barrier.await();
-    // sync after transform load();
+
+    public void executeWorker(int workerId) {
+        try {
+            extract(workerId);
+            extractionBarrier.await();
+
+            transform(workerId);
+            transformationBarrier.await();
+
+            load(workerId);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        } catch (BrokenBarrierException exception) {
+            throw new IllegalStateException(
+                    "ETL barrier was broken",
+                    exception
+            );
+        }
     }
-catch (Exception e) {
-    Thread.currentThread().interrupt();
+
+    private void extract(int id) {
+        System.out.println("T" + id + " extracting");
     }
-}
-void extract(){
-    System.out.println("T"+id+" extracting");
+
+    private void consolidate() {
+        System.out.println(
+                "Running consolidation exactly once"
+        );
     }
-void transform(){
-    System.out.println("T"+id+" transforming");
+
+    private void transform(int id) {
+        System.out.println("T" + id + " transforming");
     }
-void load(){
-    System.out.println("T"+id+" loading");
+
+    private void load(int id) {
+        System.out.println("T" + id + " loading");
     }
-}
-public class ETLPipeline {
+
     public static void main(String[] args) {
-    int workers=4;
-    CyclicBarrier barrier = new CyclicBarrier(workers, () -> System.out.println("-- barrier reached, consolidation step --"));
-    for (int i=1;i<=workers;i++) new Thread(new ETLWorker(i, barrier)).start();
+        int workers = 4;
+
+        EtlPipeline pipeline =
+                new EtlPipeline(workers);
+
+        ExecutorService executor =
+                Executors.newFixedThreadPool(workers);
+
+        for (int id = 1; id <= workers; id++) {
+            int workerId = id;
+            executor.submit(
+                    () -> pipeline.executeWorker(workerId)
+            );
+        }
+
+        executor.shutdown();
     }
 }
-
 ```
 
-Reasoning to interviewer: 
-• CyclicBarrier fits multi-phase pipelines; its action runs once per phase. • Each thread does work, then blocks until all others arrive. • Compared to CountDownLatch, it resets automatically and is reusable. 
-Future scope: 
-• For dynamic number of workers, switch to Phaser. • Add timeouts in await() to prevent one stuck worker blocking all. • Combine with thread pools for structured task management instead of raw threads. 
+### Correction to the original design
 
-## Scenario 54: Cancel long-running tasks if they exceed a deadline 
-You run a report generator. Some reports take too long and must be aborted after 5 seconds. 
-Answer: 
-I’ll submit each task to ExecutorService, hold its Future, and call get(timeout, unit). If it times out, I’ll cancel(true) to interrupt the worker. 
+A single `CyclicBarrier` with a barrier action would run that action every time the barrier is reused. With two `await()` calls, consolidation would run twice.
+
+Use:
+
+- One barrier with the consolidation action
+- A second barrier without that action
+
+### Interview-ready answer
+
+> I would use a `CyclicBarrier` after extraction with consolidation as its barrier action. I would use another barrier after transformation if loading must wait for every transform. `CyclicBarrier` is reusable, but its action runs on every completed barrier cycle.
+
+---
+
+# Scenario 54: Cancel a Long-Running Task After a Deadline
+
+## Solution using `Future`
 
 ```java
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
-import java.util.concurrent.*;
-    class Report implements Callable<String> {
-    private final int id;
-    Report(int id){this.id=id;}
-@Override public String call() throws Exception {
-    Thread.sleep(7000);
-    // simulate slow return "Report " + id;
+public final class ReportTimeoutDemo {
+
+    private record Report(int id)
+            implements Callable<String> {
+
+        @Override
+        public String call()
+                throws InterruptedException {
+
+            for (int step = 0; step < 20; step++) {
+                if (Thread.currentThread().isInterrupted()) {
+                    throw new InterruptedException();
+                }
+
+                Thread.sleep(500);
+            }
+
+            return "Report " + id;
+        }
     }
-}
-public class TimeoutCancelDemo {
+
     public static void main(String[] args) {
-    ExecutorService pool = Executors.newCachedThreadPool();
-    Future<String> f = pool.submit(new Report(42));
-    try {
-    String res = f.get(5, TimeUnit.SECONDS);
-    System.out.println("Got: " + res);
-    }
-catch (TimeoutException e) {
-    System.out.println("Report took too long, cancelling...");
-    f.cancel(true);
-    }
-catch (Exception e) {
-    e.printStackTrace();
-    }
-finally {
-    pool.shutdown();
-    }
-}
-}
+        ExecutorService executor =
+                Executors.newFixedThreadPool(4);
 
+        Future<String> future =
+                executor.submit(new Report(42));
+
+        try {
+            String result =
+                    future.get(5, TimeUnit.SECONDS);
+
+            System.out.println(result);
+        } catch (TimeoutException exception) {
+            System.out.println(
+                    "Report exceeded its deadline"
+            );
+
+            future.cancel(true);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            future.cancel(true);
+        } catch (Exception exception) {
+            System.err.println(
+                    "Report failed: " + exception
+            );
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+}
 ```
 
-Reasoning to interviewer: 
-• Future.get(timeout) throws TimeoutException—perfect for deadlines. • cancel(true) sets interrupt flag; the task must cooperate (e.g., by checking Thread.interrupted() or catching InterruptedException). • Timeout protects system throughput and avoids unbounded waits. 
-Future scope: 
-• Use CompletableFuture.orTimeout() in Java 9+ for cleaner chaining. • Wrap blocking I/O in libraries that respect interrupts. • Log timeouts for metrics and possibly retry with backoff. 
+### Important point
 
-## Scenario 55: Parallel stream runs slower than sequential on small data 
-You squared a list of 100 ints with parallelStream(), but it runs slower than a simple loop. 
-Answer: 
-Parallel streams split work into subtasks via ForkJoinPool. Overhead of splitting and coordination can outweigh benefits on small datasets. For small lists, sequential is better; parallel helps only when: 
-1. 
-data is large, 
-2. 
-tasks are CPU-intensive, 
-3. 
-no shared mutable state. 
+`cancel(true)` does not forcibly terminate a task. It requests interruption.
+
+The task must cooperate by:
+
+- Checking its interrupted status
+- Responding to `InterruptedException`
+- Using libraries with cancellation-aware timeouts
+
+### Interview-ready answer
+
+> I would call `Future.get()` with a timeout. On `TimeoutException`, I would call `cancel(true)`, but I would also ensure that the task and its blocking operations respond to interruption. Cancellation in Java is cooperative.
+
+---
+
+# Scenario 55: A Parallel Stream Is Slower on a Small Collection
+
+Parallel streams add:
+
+- Data partitioning
+- Task scheduling
+- Worker coordination
+- Result merging
+- Shared common-pool contention
+
+For a list of 100 integers, this overhead is usually larger than the work being performed.
 
 ```java
-
-import java.util.*;
-    import java.util.stream.*;
-    public class ParallelPerfDemo {
-    public static void main(String[] args) {
-    List<Integer> nums = IntStream.rangeClosed(1, 100).boxed().toList();
-    long t1 = System.nanoTime();
-    nums.stream().map(n->n*n).toList();
-    long t2 = System.nanoTime();
-    nums.parallelStream().map(n->n*n).toList();
-    long t3 = System.nanoTime();
-    System.out.printf("Sequential=%.2fms, Parallel=%.2fms%n", (t2-t1)/1e6, (t3-t2)/1e6);
-    }
-}
-
+List<Integer> squares = numbers.stream()
+        .map(number -> number * number)
+        .toList();
 ```
 
-Reasoning to interviewer: 
-• ForkJoinPool overhead ≈ splitting + task scheduling + join. • With only 100 elements, cost > work. With millions, parallel wins. • Don’t blindly switch to parallel; measure per workload. 
-Future scope: 
-• Use thresholds (size, CPU intensity) to pick sequential vs parallel. • For I/O-bound work, prefer CompletableFuture or virtual threads. • Profile using JMH to quantify actual gains. 
+Parallel processing becomes a candidate only when:
 
-## Scenario 56: Multiple readers, single writer with high read frequency 
-You’re building a stock price dashboard where dozens of threads read the latest price frequently, while only one thread updates it occasionally. You want high performance for reads without blocking each other. 
-Answer: 
-I’d use ReadWriteLock or better, StampedLock. With ReadWriteLock, multiple readers can proceed in parallel but writers are exclusive. With StampedLock, I can even attempt optimistic reads, which don’t block unless a write happens. 
+- The input is sufficiently large.
+- Work per item is expensive.
+- The work is CPU-bound.
+- Operations are independent and stateless.
+- The source divides efficiently.
+- Measurement proves an improvement.
+
+### Important benchmarking point
+
+Do not use a single `System.nanoTime()` comparison as evidence. JVM warm-up, JIT compilation and dead-code elimination can invalidate the result.
+
+Use JMH for reliable microbenchmarks.
+
+### Interview-ready answer
+
+> Parallel execution has splitting, scheduling and joining overhead. For small or cheap workloads, that overhead exceeds the useful work. I use parallel streams only for measured CPU-intensive workloads and never assume that “parallel” means “faster.”
+
+---
+
+# Scenario 56: Many Readers and an Occasional Writer
+
+## Solution using `StampedLock`
 
 ```java
-
 import java.util.concurrent.locks.StampedLock;
-    class PriceBoard {
-    private final StampedLock lock = new StampedLock();
+
+public final class PriceBoard {
+
+    private final StampedLock lock =
+            new StampedLock();
+
     private double price = 100.0;
-    public void update(double newPrice) {
-    long stamp = lock.writeLock();
-    try {
-    price = newPrice;
-    }
-finally {
-    lock.unlockWrite(stamp);
-    }
-}
-public double read() {
-    long stamp = lock.tryOptimisticRead();
-    double val = price;
-    if (!lock.validate(stamp)) {
-    // fallback if a write happened stamp = lock.readLock();
-    try {
-    val = price;
-    }
-finally {
-    lock.unlockRead(stamp);
-    }
-}
-return val;
-    }
-}
+    private long updateTime;
 
+    public void update(
+            double newPrice,
+            long newUpdateTime
+    ) {
+        long stamp = lock.writeLock();
+
+        try {
+            price = newPrice;
+            updateTime = newUpdateTime;
+        } finally {
+            lock.unlockWrite(stamp);
+        }
+    }
+
+    public PriceSnapshot read() {
+        long stamp = lock.tryOptimisticRead();
+
+        double observedPrice = price;
+        long observedTime = updateTime;
+
+        if (!lock.validate(stamp)) {
+            stamp = lock.readLock();
+
+            try {
+                observedPrice = price;
+                observedTime = updateTime;
+            } finally {
+                lock.unlockRead(stamp);
+            }
+        }
+
+        return new PriceSnapshot(
+                observedPrice,
+                observedTime
+        );
+    }
+
+    public record PriceSnapshot(
+            double price,
+            long updateTime
+    ) {
+    }
+}
 ```
 
-Reasoning to interviewer: 
-• Reads dominate, so optimistic reads avoid unnecessary locking. • validate() ensures consistency if a write interfered. • Writers still get exclusive access when updating. 
-Future scope: 
-• If updates increase, switch back to ReentrantReadWriteLock for fairness. • Add versioning to detect stale reads in distributed scenarios. • Integrate with caches (e.g., Guava/Redis) for scale-out read-heavy workloads. 
+### Important points
 
-## Scenario 57: Coordinating different tasks that must run in order 
-You have 3 steps: load data, process it, and finally save results. Each step must wait for the previous one to complete across multiple threads. 
-Answer: 
-I’d use a CountDownLatch chain or CompletableFuture chaining. With latch chaining, each stage waits for the previous latch to reach zero before proceeding. 
+- Copy all related fields before calling `validate()`.
+- If validation fails, repeat the read under a real read lock.
+- `StampedLock` is not reentrant.
+- It does not directly support conditions.
+- For one independently updated primitive value, `volatile` may be simpler.
+- Measure before assuming it is faster than `ReentrantReadWriteLock`.
+
+### Interview-ready answer
+
+> For read-dominated compound state, I may use `StampedLock` with optimistic reads. I copy the state, validate the stamp and fall back to a read lock if a write occurred. For one simple value, a volatile field may be a clearer solution.
+
+---
+
+# Scenario 57: Load, Process and Save Must Execute in Order
+
+For result-dependent stages, `CompletableFuture` is generally clearer than chaining latches.
 
 ```java
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
-import java.util.concurrent.CountDownLatch;
-    public class OrderedTasksDemo {
-    public static void main(String[] args) throws InterruptedException {
-    CountDownLatch loadDone = new CountDownLatch(1);
-    CountDownLatch processDone = new CountDownLatch(1);
-    Thread loader = new Thread(() -> {
-    System.out.println("Loading data...");
-    loadDone.countDown();
-    });
-    Thread processor = new Thread(() -> {
-    try {
-    loadDone.await();
-    System.out.println("Processing data...");
-    processDone.countDown();
+public final class OrderedPipeline {
+
+    public static void main(String[] args) {
+        ExecutorService executor =
+                Executors.newFixedThreadPool(3);
+
+        try {
+            CompletableFuture<Void> pipeline =
+                    CompletableFuture
+                            .supplyAsync(
+                                    OrderedPipeline::load,
+                                    executor
+                            )
+                            .thenApplyAsync(
+                                    OrderedPipeline::process,
+                                    executor
+                            )
+                            .thenAcceptAsync(
+                                    OrderedPipeline::save,
+                                    executor
+                            )
+                            .orTimeout(
+                                    30,
+                                    TimeUnit.SECONDS
+                            );
+
+            pipeline.join();
+        } finally {
+            executor.shutdown();
+        }
     }
-catch (InterruptedException e) {
-    Thread.currentThread().interrupt();
+
+    private static String load() {
+        System.out.println("Loading");
+        return "raw-data";
     }
-});
-    Thread saver = new Thread(() -> {
-    try {
-    processDone.await();
-    System.out.println("Saving results...");
+
+    private static String process(String data) {
+        System.out.println("Processing " + data);
+        return "processed-data";
     }
-catch (InterruptedException e) {
-    Thread.currentThread().interrupt();
-    }
-});
-    loader.start();
-    processor.start();
-    saver.start();
+
+    private static void save(String result) {
+        System.out.println("Saving " + result);
     }
 }
-
 ```
 
-Reasoning to interviewer: 
-• Each stage gates on the previous latch, ensuring order. • This avoids busy waiting or sleeps. • For complex workflows, CompletableFuture.thenRun() or orchestration frameworks may be better. 
-Future scope: 
-• For DAG-style dependencies, use CompletableFuture chaining. • Add error handling and early termination if one stage fails. • Move to async/reactive frameworks for large dependency graphs. 
+### Interview-ready answer
 
-## Scenario 58: Detect and recover from livelock 
-Two worker threads politely keep yielding control when they detect contention, but they never make progress (classic livelock). 
-Answer: 
-This is livelock: threads are active but not progressing. To fix, add a random back-off strategy so they don’t both retry at the same time. 
+> A latch can enforce stage gates, but `CompletableFuture` is better when one stage produces the input for the next. It propagates results and failures through the pipeline without manually managing multiple latches.
+
+---
+
+# Scenario 58: Detect and Recover from Livelock
+
+## Definition
+
+In livelock, threads remain active and repeatedly react to each other, but no useful work is completed.
+
+Symmetric retries can cause this:
+
+```text
+Thread A releases and retries.
+Thread B releases and retries.
+Both collide again.
+```
+
+## Mitigation using bounded retries and jitter
 
 ```java
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
 
-class LivelockFixed {
-    private volatile boolean resourceInUse = false;
-    public void useResource(String worker) {
-    while (true) {
-    if (!resourceInUse) {
+public final class LivelockAvoidance {
+
+    public boolean perform(
+            Lock first,
+            Lock second
+    ) throws InterruptedException {
+
+        int maximumAttempts = 10;
+
+        for (int attempt = 1;
+             attempt <= maximumAttempts;
+             attempt++) {
+
+            boolean firstAcquired =
+                    first.tryLock(
+                            50,
+                            TimeUnit.MILLISECONDS
+                    );
+
+            if (!firstAcquired) {
+                backoff();
+                continue;
+            }
+
+            try {
+                boolean secondAcquired =
+                        second.tryLock(
+                                50,
+                                TimeUnit.MILLISECONDS
+                        );
+
+                if (secondAcquired) {
+                    try {
+                        performWork();
+                        return true;
+                    } finally {
+                        second.unlock();
+                    }
+                }
+            } finally {
+                first.unlock();
+            }
+
+            backoff();
+        }
+
+        return false;
+    }
+
+    private void backoff()
+            throws InterruptedException {
+
+        long delay =
+                ThreadLocalRandom.current()
+                        .nextLong(10, 100);
+
+        Thread.sleep(delay);
+    }
+
+    private void performWork() {
+        System.out.println("Work completed");
+    }
+}
+```
+
+### Correction to the original example
+
+A `volatile boolean` with:
+
+```java
+if (!resourceInUse) {
     resourceInUse = true;
-    System.out.println(worker + " acquired resource");
-    try {
-    Thread.sleep(200);
-    }
-catch (InterruptedException e) {
-    Thread.currentThread().interrupt();
-    }
-resourceInUse = false;
-    System.out.println(worker + " released resource");
-    break;
-    }
-else {
-    try {
-    // backoff prevents livelock Thread.sleep((int)(Math.random()*100));
-    }
-catch (InterruptedException e) {
-    Thread.currentThread().interrupt();
-    }
 }
-}
-}
-}
-
 ```
 
-Reasoning to interviewer: 
-• Livelock isn’t a dead halt (like deadlock), but no useful work gets done. • Random or exponential backoff breaks the symmetry. • Real systems (e.g., networking, DB retries) use this to avoid livelock storms. 
-Future scope: 
-• Use Lock.tryLock(timeout) instead of manual busy loops. • Add metrics for retry count to detect potential livelocks. • Apply fairness policies if many threads contend repeatedly. 
+is not atomic. Two threads may both observe `false` and both enter.
 
-## Scenario 59: Cancel tasks cleanly in ExecutorService 
-You schedule tasks that may hang (e.g., external API calls). You want to cancel them if a signal is received (like user logout). 
-Answer: 
-I’d hold on to Future<?> objects returned by submit() and call cancel(true). Each task should check Thread.interrupted() periodically to exit gracefully. 
+### Interview-ready answer
+
+> Livelock means threads are running but repeatedly interfering with each other. I would detect high retry activity without successful completion and break the symmetry using bounded retries, randomized or exponential backoff, ownership ordering or a centralized coordinator.
+
+---
+
+# Scenario 59: Cancel Tasks Cleanly
 
 ```java
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
-import java.util.concurrent.*;
-    class CancellableTask implements Runnable {
-    public void run() {
-    try {
-    for (int i=0;i<10;i++) {
-    if (Thread.interrupted()) {
-    System.out.println("Task interrupted, cleaning up...");
-    return;
-    }
-Thread.sleep(500);
-    System.out.println("Step " + i);
-    }
-}
-catch (InterruptedException e) {
-    Thread.currentThread().interrupt();
-    System.out.println("Interrupted during sleep, exiting...");
-    }
-}
-}
-public class CancelTasksDemo {
-    public static void main(String[] args) throws InterruptedException {
-    ExecutorService pool = Executors.newSingleThreadExecutor();
-    Future<?> f = pool.submit(new CancellableTask());
-    Thread.sleep(1200);
-    f.cancel(true);
-    // cancel after 1.2s pool.shutdown();
-    }
-}
+public final class CancellationDemo {
 
+    private static final class CancellableTask
+            implements Runnable {
+
+        @Override
+        public void run() {
+            try {
+                for (int step = 0; step < 100; step++) {
+                    if (Thread.currentThread()
+                            .isInterrupted()) {
+
+                        return;
+                    }
+
+                    Thread.sleep(500);
+                    System.out.println("Step " + step);
+                }
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+            } finally {
+                cleanUp();
+            }
+        }
+
+        private void cleanUp() {
+            System.out.println("Cleaning up resources");
+        }
+    }
+
+    public static void main(String[] args)
+            throws InterruptedException {
+
+        ExecutorService executor =
+                Executors.newSingleThreadExecutor();
+
+        Future<?> future =
+                executor.submit(new CancellableTask());
+
+        Thread.sleep(1_200);
+
+        future.cancel(true);
+        executor.shutdownNow();
+
+        executor.awaitTermination(
+                5,
+                TimeUnit.SECONDS
+        );
+    }
+}
 ```
 
-Reasoning to interviewer: 
-• cancel(true) sets interrupt flag, which must be checked in the task. • Cooperative cancellation avoids resource leaks and half-updates. • Threads ignoring interrupts will appear “uncancellable”. 
-Future scope: 
-• Use CompletableFuture.cancel() for async pipelines. • Add cleanup hooks (closing sockets, rolling back DB). • Centralize cancellation via ExecutorService.shutdownNow(). 
+### Important points
 
-## Scenario 60: Parallel aggregation of large datasets 
-You need to compute total sales from a dataset of millions of records. Single-threaded loops are too slow. 
-Answer: 
-I’d use Java 8 parallel streams or ForkJoinPool to split the work across cores. With parallel streams, the workload is automatically partitioned and reduced. 
+- `cancel(true)` requests interruption.
+- `Thread.interrupted()` checks and clears the flag.
+- `isInterrupted()` checks without clearing it.
+- Cleanup belongs in `finally`.
+- Network and database calls also need their own timeouts.
+
+### Interview-ready answer
+
+> I retain the returned `Future` and call `cancel(true)`. The task must treat interruption as a cancellation request, stop at safe points and release resources in `finally`.
+
+---
+
+# Scenario 60: Parallel Aggregation of a Large Dataset
 
 ```java
+import java.util.stream.LongStream;
 
-import java.util.*;
-    import java.util.stream.*;
-    public class SalesAggregator {
+public final class SalesAggregator {
+
     public static void main(String[] args) {
-    List<Integer> sales = IntStream.range(1, 1_000_000).boxed().toList();
-    long total = sales.parallelStream() .mapToLong(Integer::longValue) .sum();
-    System.out.println("Total sales = " + total);
+        long totalCents =
+                LongStream.rangeClosed(
+                                1,
+                                10_000_000
+                        )
+                        .parallel()
+                        .sum();
+
+        System.out.println(totalCents);
     }
 }
-
 ```
 
-Reasoning to interviewer: 
-• Parallel streams leverage ForkJoinPool with work-stealing. • Operations must be associative and stateless for correctness. • Aggregation scales well when dataset is large and CPU-bound. 
-Future scope: 
-• Use Collectors.groupingByConcurrent for grouped aggregations. • For I/O-heavy tasks, switch to async APIs instead of parallel streams. • Tune ForkJoinPool parallelism if default doesn’t suit workload. 
+Using primitive streams avoids boxing each value.
 
-## Scenario 61: Throttling API calls with limited concurrency 
-You’re writing a service that calls an external API, but the API provider allows only 3 concurrent calls at a time. Extra calls should wait. 
-Answer: 
-I’d use a Semaphore with 3 permits. Each API call thread acquires a permit before sending the request and releases it after completion. 
+### Conditions for parallel benefit
+
+- Large in-memory input
+- CPU-bound processing
+- Associative reduction
+- Stateless operations
+- Efficient source splitting
+- Available processor capacity
+- Benchmark-confirmed improvement
+
+For financial calculations, use an appropriate representation such as integer minor units or carefully designed `BigDecimal` operations.
+
+### Interview-ready answer
+
+> A parallel reduction can work well when the data is large, in memory and CPU-bound, and when the reduction operation is associative. I would use primitive streams where possible and compare the implementation against a sequential version using realistic benchmarks.
+
+---
+
+# Scenario 61: Limit an External API to Three Concurrent Calls
 
 ```java
-
 import java.util.concurrent.Semaphore;
-    class ApiClient {
-    private final Semaphore semaphore = new Semaphore(3);
-    // max 3 concurrent calls public void callApi(String name) {
-    try {
-    semaphore.acquire();
-    System.out.println(name + " started API call");
-    Thread.sleep(1000);
-    // simulate call System.out.println(name + " finished API call");
-    }
-catch (InterruptedException e) {
-    Thread.currentThread().interrupt();
-    }
-finally {
-    semaphore.release();
-    }
-}
-}
-public class ApiThrottleDemo {
-    public static void main(String[] args) {
-    ApiClient client = new ApiClient();
-    for (int i = 1;
-    i <= 6;
-    i++) {
-    String name = "Task-" + i;
-    new Thread(() -> client.callApi(name)).start();
-    }
-}
-}
+import java.util.concurrent.TimeUnit;
 
+public final class ApiClient {
+
+    private final Semaphore permits =
+            new Semaphore(3, true);
+
+    public void callApi(String requestName) {
+        boolean acquired = false;
+
+        try {
+            acquired =
+                    permits.tryAcquire(
+                            2,
+                            TimeUnit.SECONDS
+                    );
+
+            if (!acquired) {
+                throw new IllegalStateException(
+                        "API concurrency limit unavailable"
+                );
+            }
+
+            invokeRemoteApi(requestName);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        } finally {
+            if (acquired) {
+                permits.release();
+            }
+        }
+    }
+
+    private void invokeRemoteApi(String requestName)
+            throws InterruptedException {
+
+        System.out.println(requestName + " started");
+        Thread.sleep(1_000);
+        System.out.println(requestName + " finished");
+    }
+}
 ```
 
-Reasoning to interviewer: 
-• Semaphore models the number of available “slots” for resource access. • Threads block automatically if permits are unavailable. • This prevents overload without hand-coded queue management. 
-Future scope: 
-• Use tryAcquire(timeout) for fail-fast instead of indefinite waiting. • Track rejected/blocked calls for monitoring. • Integrate with rate-limiters (like Guava’s RateLimiter) for QPS control. 
+### Important correction
 
-## Scenario 62: Coordinating variable participants across phases 
-You’re simulating a game tournament where players can join or leave between rounds. At the end of each round, all current players must sync before moving to the next. 
-Answer: 
-I’d use Phaser, which supports dynamic registration/deregistration unlike CyclicBarrier. Each player registers, plays, and waits at arriveAndAwaitAdvance(). 
+Do not release a permit when acquisition failed. Track whether the permit was successfully acquired.
+
+### Concurrency limit vs rate limit
+
+A semaphore limits simultaneous calls:
+
+```text
+Maximum three active calls
+```
+
+It does not directly enforce:
+
+```text
+Maximum three calls per second
+```
+
+Requests-per-second limits require a rate-limiting algorithm such as a token bucket.
+
+### Interview-ready answer
+
+> I would use a semaphore with three permits to cap active calls. I would acquire with a timeout, release only after successful acquisition and still configure HTTP timeouts. A semaphore limits concurrency, not requests per second.
+
+---
+
+# Scenario 62: Dynamic Participants Across Multiple Phases
 
 ```java
-
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Phaser;
-    class Player implements Runnable {
-    private final Phaser phaser;
-    private final int rounds;
-    private final String name;
-    Player(String name, Phaser phaser, int rounds) {
-    this.name = name;
-    this.phaser = phaser;
-    this.rounds = rounds;
-    phaser.register();
-    }
-@Override public void run() {
-    try {
-    for (int i = 1;
-    i <= rounds;
-    i++) {
-    System.out.println(name + " finished round " + i);
-    phaser.arriveAndAwaitAdvance();
-    }
-}
-finally {
-    phaser.arriveAndDeregister();
-    }
-}
-}
-public class PhaserDemo {
-    public static void main(String[] args) {
-    Phaser phaser = new Phaser(1);
-    // register main new Thread(new Player("Alice", phaser, 3)).start();
-    new Thread(new Player("Bob", phaser, 2)).start();
-    for (int i = 1;
-    i <= 3;
-    i++) {
-    phaser.arriveAndAwaitAdvance();
-    System.out.println("Round " + i + " completed.");
-    }
-phaser.arriveAndDeregister();
+
+public final class Tournament {
+
+    private record Player(
+            String name,
+            int rounds
+    ) {
     }
 
+    public static void main(String[] args) {
+        List<Player> players = List.of(
+                new Player("Alice", 3),
+                new Player("Bob", 2),
+                new Player("Carol", 3)
+        );
+
+        Phaser phaser = new Phaser(1);
+
+        ExecutorService executor =
+                Executors.newFixedThreadPool(
+                        players.size()
+                );
+
+        for (Player player : players) {
+            phaser.register();
+
+            executor.submit(() -> {
+                try {
+                    for (int round = 1;
+                         round <= player.rounds();
+                         round++) {
+
+                        playRound(player.name(), round);
+                        phaser.arriveAndAwaitAdvance();
+                    }
+                } finally {
+                    phaser.arriveAndDeregister();
+                }
+            });
+        }
+
+        int maximumRounds =
+                players.stream()
+                        .mapToInt(Player::rounds)
+                        .max()
+                        .orElse(0);
+
+        for (int round = 1;
+             round <= maximumRounds;
+             round++) {
+
+            phaser.arriveAndAwaitAdvance();
+
+            System.out.println(
+                    "Round " + round + " completed"
+            );
+        }
+
+        phaser.arriveAndDeregister();
+        executor.shutdown();
+    }
+
+    private static void playRound(
+            String player,
+            int round
+    ) {
+        System.out.println(
+                player + " completed round " + round
+        );
+    }
+}
 ```
 
-} 
-Reasoning to interviewer: 
-• Phaser is more flexible than CyclicBarrier for dynamic participation. • Deregistration prevents waiting on threads that left early. • Useful for simulations, iterative algorithms, or variable teams. 
-Future scope: 
-• Override onAdvance to add custom phase logic. • Add timeouts to detect stuck participants. • For hierarchical workflows, use multiple phasers. 
+### Key points
 
-## Scenario 63: Task dependencies with CompletableFuture 
-In an order processing system, you must: 
-1. 
-Validate the order. 
-2. 
-Charge payment only if validation succeeds. 
-3. 
-Send confirmation email after payment. 
-Answer: 
-I’d chain CompletableFutures using thenCompose() for dependent tasks and thenRun() for actions without results. 
+- `Phaser` supports registration and deregistration.
+- A participant that leaves must deregister.
+- `CyclicBarrier` expects a fixed participant count.
+- For interruptible waits or timeouts, use the appropriate `Phaser` waiting methods.
+
+### Interview-ready answer
+
+> I would use a `Phaser` because participants can join or deregister between phases. Each active participant arrives at the phase boundary, and participants leaving the workflow call `arriveAndDeregister()`.
+
+---
+
+# Scenario 63: Dependent Tasks with `CompletableFuture`
 
 ```java
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
-import java.util.concurrent.*;
-    public class OrderPipelineDemo {
+public final class OrderPipeline {
+
     public static void main(String[] args) {
-    ExecutorService executor = Executors.newFixedThreadPool(3);
-    CompletableFuture<Void> pipeline = CompletableFuture.supplyAsync(() -> validateOrder("ORD123"), executor) .thenCompose(valid -> chargePayment(valid, executor)) .thenAccept(paymentId -> sendConfirmation(paymentId));
-    pipeline.join();
-    executor.shutdown();
+        ExecutorService executor =
+                Executors.newFixedThreadPool(4);
+
+        try {
+            CompletableFuture<Void> pipeline =
+                    CompletableFuture
+                            .supplyAsync(
+                                    () -> validateOrder("ORD-123"),
+                                    executor
+                            )
+                            .thenCompose(valid ->
+                                    chargePayment(
+                                            valid,
+                                            executor
+                                    )
+                            )
+                            .thenAcceptAsync(
+                                    OrderPipeline::sendConfirmation,
+                                    executor
+                            )
+                            .orTimeout(
+                                    10,
+                                    TimeUnit.SECONDS
+                            )
+                            .whenComplete((ignored, failure) -> {
+                                if (failure != null) {
+                                    System.err.println(
+                                            "Order failed: "
+                                                    + failure
+                                    );
+                                }
+                            });
+
+            pipeline.join();
+        } finally {
+            executor.shutdown();
+        }
     }
-static boolean validateOrder(String id) {
-    System.out.println("Validating " + id);
-    return true;
+
+    private static boolean validateOrder(String orderId) {
+        System.out.println("Validating " + orderId);
+        return true;
     }
-static CompletableFuture<String> chargePayment(boolean valid, Executor executor) {
-    return CompletableFuture.supplyAsync(() -> {
-    if (!valid) throw new RuntimeException("Invalid order");
-    System.out.println("Charging payment...");
-    return "TXN-999";
-    }, executor);
+
+    private static CompletableFuture<String> chargePayment(
+            boolean valid,
+            ExecutorService executor
+    ) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!valid) {
+                throw new IllegalArgumentException(
+                        "Invalid order"
+                );
+            }
+
+            System.out.println("Charging payment");
+            return "TXN-999";
+        }, executor);
     }
-static void sendConfirmation(String txnId) {
-    System.out.println("Sending confirmation for " + txnId);
+
+    private static void sendConfirmation(
+            String transactionId
+    ) {
+        System.out.println(
+                "Confirmation for " + transactionId
+        );
     }
 }
-
 ```
 
-Reasoning to interviewer: 
-• thenCompose flattens dependent async tasks. • thenAccept consumes a result without producing a new one. • Clear pipeline, avoids blocking, keeps error handling async. 
-Future scope: 
-• Add .exceptionally() or .handle() for fallback logic. • Use allOf() when processing multiple parallel validations. • Combine with timeouts for resilience. 
+### Key points
 
-## Scenario 64: Handling starvation in lock-heavy system 
-A high-priority thread keeps grabbing a lock, while other threads rarely progress. 
-Answer: 
-This is starvation. I’d use a fair ReentrantLock(true) to ensure FIFO lock acquisition. 
+- `thenCompose()` flattens dependent asynchronous operations.
+- `thenAccept()` consumes a result and returns no new value.
+- Add timeout and exception handling.
+- Payment processing must be idempotent because retries may occur.
+
+### Interview-ready answer
+
+> I would use `thenCompose()` because payment depends on successful validation and already returns a future. I would then use `thenAccept()` for confirmation, with explicit timeout, failure handling and idempotency around the payment step.
+
+---
+
+# Scenario 64: Starvation in a Lock-Heavy System
 
 ```java
-
 import java.util.concurrent.locks.ReentrantLock;
-    class SharedCounter {
-    private final ReentrantLock lock = new ReentrantLock(true);
-    // fair lock private int counter = 0;
-    public void increment(String name) {
-    lock.lock();
-    try {
-    counter++;
-    System.out.println(name + " incremented to " + counter);
-    }
-finally {
-    lock.unlock();
+
+public final class SharedCounter {
+
+    private final ReentrantLock lock =
+            new ReentrantLock(true);
+
+    private int counter;
+
+    public void increment() {
+        lock.lock();
+
+        try {
+            counter++;
+        } finally {
+            lock.unlock();
+        }
     }
 }
-}
-public class FairLockDemo {
+```
+
+A fair lock generally favors threads that have waited longer.
+
+### Important nuance
+
+A fair `ReentrantLock`:
+
+- Reduces lock starvation risk
+- Does not guarantee perfect FIFO execution
+- Does not solve CPU scheduling starvation
+- May reduce throughput
+- Does not remove the need to shorten critical sections
+
+### Better investigation
+
+Before enabling fairness, check:
+
+- Lock-hold duration
+- Repeated lock reacquisition
+- Slow work under the lock
+- Whether one global lock can be partitioned
+- Whether the shared state can be redesigned
+
+### Interview-ready answer
+
+> A fair `ReentrantLock` can reduce starvation among queued lock waiters, but it is not a strict FIFO scheduler and can reduce throughput. I would first inspect lock scope and contention, then use fairness when bounded waiting is an actual requirement.
+
+---
+
+# Scenario 65: Run Thousands of Tasks Without Creating One Thread per Task
+
+`Executors.newFixedThreadPool()` uses an unbounded queue, so it does not provide complete overload protection.
+
+A bounded executor is safer:
+
+```java
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
+public final class NotificationExecutor {
+
     public static void main(String[] args) {
-    SharedCounter counter = new SharedCounter();
-    for (int i = 1;
-    i <= 5;
-    i++) {
-    String t = "T" + i;
-    new Thread(() -> counter.increment(t)).start();
+        ThreadPoolExecutor executor =
+                new ThreadPoolExecutor(
+                        10,
+                        10,
+                        0,
+                        TimeUnit.MILLISECONDS,
+                        new ArrayBlockingQueue<>(1_000),
+                        new ThreadPoolExecutor.CallerRunsPolicy()
+                );
+
+        for (int id = 1; id <= 10_000; id++) {
+            int notificationId = id;
+
+            executor.execute(() ->
+                    sendNotification(notificationId)
+            );
+        }
+
+        executor.shutdown();
+    }
+
+    private static void sendNotification(int id) {
+        System.out.println(
+                "Sending notification " + id
+        );
     }
 }
-}
-
 ```
 
-Reasoning to interviewer: 
-• Fair locks grant access roughly in order of request, avoiding starvation. • Comes with throughput tradeoff compared to non-fair locks. • Starvation often occurs when some threads hog resources repeatedly. 
-Future scope: 
-• Use lock sharding or finer-grained locks to reduce contention. • For read-heavy workloads, use ReadWriteLock. • Monitor lock wait times in production to detect hidden starvation. 
+### Why this is safer
 
-## Scenario 65: Run thousands of tasks efficiently 
-You have 10,000 short tasks (like sending notifications). Creating a thread per task is too costly. 
-Answer: 
-I’d use a fixed-size thread pool (ExecutorService) to reuse threads and manage queued tasks. 
+- Threads are reused.
+- Queue capacity is bounded.
+- `CallerRunsPolicy` applies backpressure.
+- The system cannot silently accumulate unlimited queued work.
+
+Virtual threads may be appropriate for large numbers of blocking tasks, but they do not remove downstream connection, rate or memory limits.
+
+### Interview-ready answer
+
+> I would use a bounded executor rather than one thread per task. The pool limits active workers, the queue limits backlog and the rejection policy defines overload behavior. For blocking workloads, virtual threads may simplify concurrency, but downstream capacity still must be bounded.
+
+---
+
+# Scenario 66: Divide-and-Conquer with `ForkJoinPool`
 
 ```java
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RecursiveTask;
 
-import java.util.concurrent.*;
-    class NotifyTask implements Runnable {
-    private final int id;
-    NotifyTask(int id) {
-    this.id = id;
+public final class ForkJoinSum {
+
+    private static final class SumTask
+            extends RecursiveTask<Long> {
+
+        private static final int THRESHOLD = 10_000;
+
+        private final long[] values;
+        private final int start;
+        private final int end;
+
+        private SumTask(
+                long[] values,
+                int start,
+                int end
+        ) {
+            this.values = values;
+            this.start = start;
+            this.end = end;
+        }
+
+        @Override
+        protected Long compute() {
+            int length = end - start;
+
+            if (length <= THRESHOLD) {
+                long total = 0;
+
+                for (int index = start;
+                     index < end;
+                     index++) {
+
+                    total += values[index];
+                }
+
+                return total;
+            }
+
+            int middle = start + length / 2;
+
+            SumTask left =
+                    new SumTask(
+                            values,
+                            start,
+                            middle
+                    );
+
+            SumTask right =
+                    new SumTask(
+                            values,
+                            middle,
+                            end
+                    );
+
+            left.fork();
+            long rightResult = right.compute();
+            long leftResult = left.join();
+
+            return leftResult + rightResult;
+        }
     }
-public void run() {
-    System.out.println("Sending notification " + id + " by " + Thread.currentThread().getName());
-    }
-}
-public class ThreadPoolDemo {
+
     public static void main(String[] args) {
-    ExecutorService pool = Executors.newFixedThreadPool(10);
-    for (int i = 1;
-    i <= 20;
-    i++) {
-    pool.submit(new NotifyTask(i));
-    }
-pool.shutdown();
+        long[] data = new long[5_000_000];
+
+        for (int index = 0;
+             index < data.length;
+             index++) {
+
+            data[index] = index % 10;
+        }
+
+        ForkJoinPool pool = new ForkJoinPool();
+
+        try {
+            long total = pool.invoke(
+                    new SumTask(
+                            data,
+                            0,
+                            data.length
+                    )
+            );
+
+            System.out.println(total);
+        } finally {
+            pool.shutdown();
+        }
     }
 }
-
 ```
 
-Reasoning to interviewer: 
-• Thread pools amortize thread creation cost. • A bounded pool prevents resource exhaustion. • Tasks are queued when all threads are busy. 
-Future scope: 
-• Use newCachedThreadPool for bursty workloads. • For scheduled jobs, use ScheduledExecutorService. • Consider virtual threads (Java 21+) for massive concurrency. 
+### Key points
 
-## Scenario 66: Divide-and-conquer over a big array (ForkJoinPool) 
-You need to sum a massive array (or apply a CPU-heavy transform) faster than a single thread can manage. The work splits naturally. 
-Answer: 
-I’ll use ForkJoinPool with a RecursiveTask<Long>. Each task splits the array until chunks are small, computes locally, and combines results. This keeps cores busy with work-stealing and minimizes coordination overhead. 
+- Divide work until a suitable threshold.
+- Compute one branch directly and fork the other.
+- Combine associative partial results.
+- Tune the threshold using benchmarks.
+- Use a custom pool when workload isolation matters.
+
+### Interview-ready answer
+
+> I would model the operation as a `RecursiveTask`, split until chunks are large enough to justify sequential processing, fork one branch, compute the other and join the result. The threshold determines whether parallel overhead is worthwhile.
+
+---
+
+# Scenario 67: Process Results in Completion Order
 
 ```java
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-import java.util.concurrent.*;
-    class SumTask extends RecursiveTask<Long> {
-    private static final int THRESHOLD = 10_000;
-    private final long[] arr;
-    private final int lo, hi;
-    SumTask(long[] arr, int lo, int hi) {
-    this.arr = arr;
-    this.lo = lo;
-    this.hi = hi;
+public final class CompletionOrderDemo {
+
+    private record FetchTask(
+            String name,
+            long delayMillis
+    ) implements Callable<String> {
+
+        @Override
+        public String call()
+                throws InterruptedException {
+
+            Thread.sleep(delayMillis);
+            return name + " OK";
+        }
     }
-@Override protected Long compute() {
-    int len = hi - lo;
-    if (len <= THRESHOLD) {
-    long sum = 0;
-    for (int i = lo;
-    i < hi;
-    i++) sum += arr[i];
-    return sum;
-    }
-int mid = lo + len / 2;
-    SumTask left = new SumTask(arr, lo, mid);
-    SumTask right = new SumTask(arr, mid, hi);
-    left.fork();
-    long r = right.compute();
-    // compute one half directly long l = left.join();
-    // then join the other half return l + r;
+
+    public static void main(String[] args)
+            throws InterruptedException {
+
+        ExecutorService executor =
+                Executors.newFixedThreadPool(3);
+
+        ExecutorCompletionService<String> completion =
+                new ExecutorCompletionService<>(executor);
+
+        List<FetchTask> tasks = List.of(
+                new FetchTask("pricing", 800),
+                new FetchTask("shipping", 300),
+                new FetchTask("tax", 600)
+        );
+
+        try {
+            tasks.forEach(completion::submit);
+
+            for (int index = 0;
+                 index < tasks.size();
+                 index++) {
+
+                Future<String> future =
+                        completion.take();
+
+                try {
+                    System.out.println(future.get());
+                } catch (ExecutionException exception) {
+                    System.err.println(
+                            exception.getCause()
+                    );
+                }
+            }
+        } finally {
+            executor.shutdownNow();
+        }
     }
 }
-public class ForkJoinSumDemo {
+```
+
+### Interview-ready answer
+
+> `ExecutorCompletionService` separates submission order from completion order. I submit all calls and consume completed futures from its completion queue, allowing fast results to be processed without waiting for slower earlier submissions.
+
+---
+
+# Scenario 68: Asynchronous Calls with Independent Fallbacks
+
+```java
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+public final class AsyncFallbackDemo {
+
+    private static CompletableFuture<String> callService(
+            String name,
+            long delay,
+            boolean fail,
+            ExecutorService executor
+    ) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                Thread.sleep(delay);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new CompletionException(exception);
+            }
+
+            if (fail) {
+                throw new IllegalStateException(
+                        name + " failed"
+                );
+            }
+
+            return name + ":data";
+        }, executor);
+    }
+
     public static void main(String[] args) {
-    long[] data = new long[5_000_000];
-    for (int i = 0;
-    i < data.length;
-    i++) data[i] = i % 10;
-    ForkJoinPool pool = new ForkJoinPool();
-    // or custom parallelism long total = pool.invoke(new SumTask(data, 0, data.length));
-    System.out.println("Total = " + total);
+        ExecutorService executor =
+                Executors.newFixedThreadPool(4);
 
-```
+        try {
+            CompletableFuture<String> first =
+                    callService(
+                            "A",
+                            300,
+                            false,
+                            executor
+                    ).exceptionally(failure -> {
+                        System.err.println(failure);
+                        return "A:default";
+                    });
 
-pool.shutdown(); } } 
-Reasoning to interviewer: 
-• ForkJoinPool uses work-stealing, which keeps threads busy and reduces contention. • Splitting until a threshold balances parallel overhead vs. work size. • Calling compute() on one branch and fork()/join() on the other improves locality. 
-Future scope: 
-• Tune THRESHOLD with JMH. • Use RecursiveAction for in-place transforms. • Provide a custom pool when the common pool is busy with other tasks. 
+            CompletableFuture<String> second =
+                    callService(
+                            "B",
+                            600,
+                            true,
+                            executor
+                    ).exceptionally(failure -> {
+                        System.err.println(failure);
+                        return "B:default";
+                    });
 
-## Scenario 67: Process results as soon as they finish (ExecutorCompletionService) 
-You launch multiple downstream calls (pricing, shipping, tax). Each completes at different times; you want to stream results immediately instead of waiting for all. 
-Answer: 
-I’ll wrap a fixed thread pool with ExecutorCompletionService. Submit N callables, then pull take() in a loop to get futures in completion order. Handle exceptions per-future to avoid stalling the loop. 
+            CompletableFuture<String> third =
+                    callService(
+                            "C",
+                            200,
+                            false,
+                            executor
+                    ).exceptionally(failure -> {
+                        System.err.println(failure);
+                        return "C:default";
+                    });
 
-```java
+            String result =
+                    CompletableFuture
+                            .allOf(
+                                    first,
+                                    second,
+                                    third
+                            )
+                            .thenApply(ignored ->
+                                    String.join(
+                                            "|",
+                                            first.join(),
+                                            second.join(),
+                                            third.join()
+                                    )
+                            )
+                            .orTimeout(
+                                    5,
+                                    TimeUnit.SECONDS
+                            )
+                            .join();
 
-import java.util.concurrent.*;
-    class FetchTask implements Callable<String> {
-    private final String name;
-    private final long delayMs;
-    FetchTask(String name, long delayMs) {
-    this.name = name;
-    this.delayMs = delayMs;
-    }
-@Override public String call() throws Exception {
-    Thread.sleep(delayMs);
-    if (Math.random() < 0.2) throw new RuntimeException(name + " failed");
-    return name + " OK";
-    }
-}
-public class CompletionServiceDemo {
-    public static void main(String[] args) throws InterruptedException {
-    ExecutorService pool = Executors.newFixedThreadPool(3);
-    ExecutorCompletionService<String> ecs = new ExecutorCompletionService<>(pool);
-    ecs.submit(new FetchTask("pricing", 800));
-    ecs.submit(new FetchTask("shipping", 300));
-    ecs.submit(new FetchTask("tax", 600));
-    for (int i = 0;
-    i < 3;
-    i++) {
-    Future<String> f = ecs.take();
-    try {
-    System.out.println("-> " + f.get());
-    }
-catch (ExecutionException e) {
-    System.out.println("-> error: " + e.getCause().getMessage());
-    }
-}
-pool.shutdown();
-    }
-
-```
-
-} 
-Reasoning to interviewer: 
-• Completion queue decouples submission order from completion order—great for responsiveness. • Per-future try/catch prevents one failure from killing the whole loop. • A bounded pool keeps concurrency under control. 
-Future scope: 
-• Use poll(timeout) to surface stragglers. • Attach correlation IDs for partial rendering. • Combine with a circuit breaker when failures spike. 
-
-## Scenario 68: Robust async pipeline with fallbacks (CompletableFuture) 
-You call three services; any one might fail. You want defaults for failures, still aggregate everything, and log what broke—without blocking. 
-Answer: 
-I’ll compose with CompletableFuture, apply exceptionally/handle on each branch to convert failures into safe defaults, then allOf and aggregate. No get() in the pipeline—only at the edges. 
-
-```java
-
-import java.util.concurrent.*;
-    public class CFErrorHandlingDemo {
-    private static final ExecutorService io = Executors.newFixedThreadPool(4);
-    static CompletableFuture<String> svc(String name, long ms, boolean fail) {
-    return CompletableFuture.supplyAsync(() -> {
-    try {
-    Thread.sleep(ms);
-    }
-catch (InterruptedException e) {
-    Thread.currentThread().interrupt();
-    }
-if (fail) throw new RuntimeException(name + " boom");
-    return name + ":data";
-    }, io);
-    }
-public static void main(String[] args) {
-    CompletableFuture<String> a = svc("A", 300, false) .exceptionally(ex -> {
-    System.out.println("A failed: " + ex.getMessage());
-    return "A:default";
-    });
-    CompletableFuture<String> b = svc("B", 600, true) .handle((val, ex) -> ex == null ? val : "B:default");
-    CompletableFuture<String> c = svc("C", 200, false) .exceptionally(ex -> "C:default");
-    String result = CompletableFuture.allOf(a, b, c) .thenApply(v -> String.join("|", a.join(), b.join(), c.join())) .join();
-    System.out.println("Aggregated -> " + result);
-    io.shutdown();
+            System.out.println(result);
+        } finally {
+            executor.shutdownNow();
+        }
     }
 }
-
 ```
 
-Reasoning to interviewer: 
-• Handle errors at the leaf futures so the aggregator doesn’t explode. • exceptionally maps failure → fallback; handle inspects both success/failure. • allOf waits for completion; join() is safe afterward and avoids checked exceptions noise. 
-Future scope: 
-• Add per-branch orTimeout and retries with backoff. • Collect error metrics to tune fallbacks. • Use anyOf to race mirrors for latency-sensitive branches. 
+The pipeline remains asynchronous internally, although `join()` at the application boundary waits for the final result.
 
-## Scenario 69: Double-buffer handoff between two threads (Exchanger) 
-One thread fills a buffer (producer), the other drains it (consumer). You want zero copying and to swap buffers each cycle. 
-Answer: 
-I’ll use Exchanger<T> to exchange buffer references. Each thread calls exchange(buffer): the producer hands off a full buffer and receives an empty one; the consumer does the opposite. 
+### Interview-ready answer
+
+> I would convert failures into branch-specific fallback values before aggregation. `allOf()` then waits for every branch, and joining the individual futures is safe once they have all completed. I would also add per-call timeouts and failure metrics.
+
+---
+
+# Scenario 69: Double-Buffer Handoff with `Exchanger`
 
 ```java
-
 import java.util.ArrayList;
-    import java.util.List;
-    import java.util.concurrent.Exchanger;
-    public class ExchangerDemo {
-    public static void main(String[] args) {
-    Exchanger<List<Integer>> ex = new Exchanger<>();
-    List<Integer> empty = new ArrayList<>();
-    List<Integer> full = new ArrayList<>();
-    Thread producer = new Thread(() -> {
-    List<Integer> buf = empty;
-    try {
-    for (int round = 0;
-    round < 5;
-    round++) {
-    buf.clear();
-    for (int i = 0;
-    i < 5;
-    i++) buf.add(round * 10 + i);
-    buf = ex.exchange(buf);
-    // hand off full;
-    get empty back }
-}
-catch (InterruptedException e) {
-    Thread.currentThread().interrupt();
-    }
-}, "producer");
-    Thread consumer = new Thread(() -> {
-    List<Integer> buf = full;
-    try {
-    for (int round = 0;
-    round < 5;
-    round++) {
-    buf = ex.exchange(buf);
-    // receive full;
-    return empty System.out.println("Consumed: " + buf);
-    buf.clear();
-    // now empty for next round }
-}
-catch (InterruptedException e) {
-    Thread.currentThread().interrupt();
-    }
-}, "consumer");
-    producer.start();
-    consumer.start();
-    }
-}
+import java.util.List;
+import java.util.concurrent.Exchanger;
 
+public final class DoubleBufferDemo {
+
+    public static void main(String[] args) {
+        Exchanger<List<Integer>> exchanger =
+                new Exchanger<>();
+
+        Thread producer = new Thread(() -> {
+            List<Integer> buffer =
+                    new ArrayList<>(5);
+
+            try {
+                for (int round = 0;
+                     round < 5;
+                     round++) {
+
+                    buffer.clear();
+
+                    for (int index = 0;
+                         index < 5;
+                         index++) {
+
+                        buffer.add(round * 10 + index);
+                    }
+
+                    buffer = exchanger.exchange(buffer);
+                }
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+            }
+        }, "producer");
+
+        Thread consumer = new Thread(() -> {
+            List<Integer> buffer =
+                    new ArrayList<>(5);
+
+            try {
+                for (int round = 0;
+                     round < 5;
+                     round++) {
+
+                    buffer = exchanger.exchange(buffer);
+
+                    System.out.println(
+                            "Consumed: " + buffer
+                    );
+
+                    buffer.clear();
+                }
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+            }
+        }, "consumer");
+
+        producer.start();
+        consumer.start();
+    }
+}
 ```
 
-Reasoning to interviewer: 
-• Exchanger swaps references atomically—no copying, minimal GC. • Ideal for two-party pipelines with batch boundaries. • Both sides synchronize naturally at each exchange. 
-Future scope: 
-• Add timeouts to exchange() for robustness. • For more than two parties, use queues/barriers instead. • Use object pools for reusable buffers and fewer allocations. 
+### Key points
 
-## Scenario 70: Graceful shutdown of multi-consumer pipeline (BlockingQueue + poison pill) 
-You have a bounded queue with many consumers. When the producer finishes, all consumers should exit cleanly—no hanging threads. 
-Answer: 
-I’ll insert one poison pill per consumer after production ends. Each consumer exits when it dequeues the pill. This avoids races around “is-done” flags. 
+- `Exchanger` swaps object references between exactly two parties.
+- The producer receives the consumer’s empty buffer.
+- The consumer receives the producer’s full buffer.
+- Data copying between buffers is avoided.
+- Both parties synchronize at every exchange.
+- Use timed exchange operations when one party may fail.
+
+### Interview-ready answer
+
+> I would use an `Exchanger<List<T>>` so the producer and consumer exchange buffer ownership. This avoids copying the elements and naturally synchronizes the two processing stages.
+
+---
+
+# Scenario 70: Graceful Shutdown with Poison Pills
 
 ```java
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
-import java.util.concurrent.*;
-    import java.util.*;
-    public class PoisonPillDemo {
-    private static final String PILL = "__STOP__";
-    public static void main(String[] args) throws InterruptedException {
-    int consumers = 3;
-    BlockingQueue<String> q = new ArrayBlockingQueue<>(10);
-    ExecutorService pool = Executors.newFixedThreadPool(consumers);
-    // Consumers for (int i = 0;
-    i < consumers;
-    i++) {
-    pool.submit(() -> {
-    try {
-    for (;;) {
-    String msg = q.take();
-    if (PILL.equals(msg)) break;
-    // process System.out.println(Thread.currentThread().getName() + " -> " + msg);
+public final class PoisonPillPipeline {
+
+    private record Job(
+            String payload,
+            boolean stop
+    ) {
+        private static Job work(String payload) {
+            return new Job(payload, false);
+        }
+
+        private static Job poisonPill() {
+            return new Job("", true);
+        }
+    }
+
+    public static void main(String[] args)
+            throws InterruptedException {
+
+        int consumerCount = 3;
+
+        BlockingQueue<Job> queue =
+                new ArrayBlockingQueue<>(10);
+
+        ExecutorService consumers =
+                Executors.newFixedThreadPool(
+                        consumerCount
+                );
+
+        for (int index = 0;
+             index < consumerCount;
+             index++) {
+
+            consumers.submit(() -> {
+                try {
+                    while (true) {
+                        Job job = queue.take();
+
+                        if (job.stop()) {
+                            return;
+                        }
+
+                        process(job.payload());
+                    }
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+        }
+
+        try {
+            for (int id = 1; id <= 20; id++) {
+                queue.put(
+                        Job.work("job-" + id)
+                );
+            }
+        } finally {
+            for (int index = 0;
+                 index < consumerCount;
+                 index++) {
+
+                queue.put(Job.poisonPill());
+            }
+        }
+
+        consumers.shutdown();
+
+        if (!consumers.awaitTermination(
+                5,
+                TimeUnit.SECONDS
+        )) {
+            consumers.shutdownNow();
+        }
+    }
+
+    private static void process(String payload) {
+        System.out.println(
+                Thread.currentThread().getName()
+                        + " processed "
+                        + payload
+        );
     }
 }
-catch (InterruptedException e) {
-    Thread.currentThread().interrupt();
-    }
-});
-    }
-// Producer for (int i = 1;
-    i <= 20;
-    i++) q.put("job-" + i);
-    // Stop signal: one pill per consumer for (int i = 0;
-    i < consumers;
-    i++) q.put(PILL);
-    pool.shutdown();
-
 ```
 
-pool.awaitTermination(5, TimeUnit.SECONDS); System.out.println("Pipeline stopped cleanly"); } } 
-Reasoning to interviewer: 
-• A bounded BlockingQueue gives built-in backpressure. • One poison pill per consumer guarantees all workers see a stop signal. • No fragile shared flags or timing assumptions. 
-Future scope: 
-• Replace pills with ExecutorService shutdown + queue drain if tasks are cancellable. • Add retries/dead-letter queue for failures. • Track queue depth for autoscaling consumers.
+### Why one pill per consumer?
+
+Each poison pill is consumed by only one worker. With three consumers, one pill would stop only one consumer and leave the other two waiting.
+
+### Important considerations
+
+- Use an explicit message type rather than a normal data value that could collide with real input.
+- Insert poison pills after all ordinary work.
+- If producers can fail, send shutdown messages from cleanup logic.
+- For immediate cancellation, interruption may be more appropriate than draining the queue.
+- A bounded queue provides backpressure.
+
+### Interview-ready answer
+
+> I would enqueue one poison pill per consumer after all normal work. Each consumer exits after receiving one. I would use an explicit message type rather than a magic string and combine the protocol with executor shutdown and a termination timeout.

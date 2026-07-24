@@ -1,965 +1,2201 @@
-# Basic Questions
+# `01-core-java/oop/basic-questions.md`
 
-## Question 1: What are the main principles of Object-Oriented Programming (OOP)?
+## Question 1: What is Object-Oriented Programming?
 
-1. Encapsulation: Wrapping data and methods in a single unit (class). 
-2. Abstraction: Hiding implementation details and showing only the functionality. 
-3. Inheritance: Allowing a class to inherit properties and methods from another class. 
-4. Polymorphism: Using a single interface to represent different forms (overloading and 
-overriding).
+Object-Oriented Programming is a programming approach that organizes software around **objects**.
 
-## Question 2: What are constructors in Java? How are they different from methods?
+An object combines:
 
-• Constructors: Special methods to initialize objects. 
-• Name matches the class. 
-• No return type. 
-• Difference from methods: Methods perform actions; constructors initialize objects.
+- State, represented by fields
+- Behavior, represented by methods
+- Identity, which distinguishes it from other objects
 
-## Question 3: Explain method overloading and method overriding with examples.
+```java
+public class BankAccount {
 
-• Overloading: Same method name, different parameters (compile-time 
-polymorphism). 
-java 
+    private BigDecimal balance;
 
-class Example { 
-void display(int a) { } 
-void display(String b) { } 
-} 
-• Overriding: Subclass provides a new implementation for a method in the superclass 
-(runtime polymorphism). 
-java 
+    public void deposit(BigDecimal amount) {
+        balance = balance.add(amount);
+    }
+}
+```
 
-class Parent { 
-void display() { } 
-} 
-class Child extends Parent { 
-@Override 
-void display() { } 
+OOP helps model responsibilities, relationships, and behavior using classes, interfaces, and objects.
+
+---
+
+## Question 2: What are the four pillars of OOP?
+
+The four main OOP principles are:
+
+1. Encapsulation
+2. Abstraction
+3. Inheritance
+4. Polymorphism
+
+```mermaid
+flowchart TD
+    A[Object-Oriented Programming] --> B[Encapsulation]
+    A --> C[Abstraction]
+    A --> D[Inheritance]
+    A --> E[Polymorphism]
+
+    B --> B1[Protect internal state]
+    C --> C1[Expose essential behavior]
+    D --> D1[Reuse and specialize behavior]
+    E --> E1[One contract, many implementations]
+```
+
+### Encapsulation
+
+Groups state and behavior while controlling access to internal data.
+
+### Abstraction
+
+Exposes essential operations while hiding implementation details.
+
+### Inheritance
+
+Allows one class to derive behavior and state from another class.
+
+### Polymorphism
+
+Allows code to interact through a common type while different objects provide different behavior.
+
+---
+
+## Question 3: What is a class?
+
+A class is a user-defined type that describes the state and behavior of its objects.
+
+```java
+public class Employee {
+
+    private long id;
+    private String name;
+
+    public void work() {
+        System.out.println(name + " is working");
+    }
+}
+```
+
+A class may contain:
+
+- Fields
+- Methods
+- Constructors
+- Nested types
+- Initialization blocks
+
+A class is more than a collection of variables and methods; it defines a type, its invariants, and its responsibilities.
+
+---
+
+## Question 4: What is an object?
+
+An object is a runtime instance of a class.
+
+```java
+Employee employee = new Employee();
+```
+
+The variable `employee` contains a reference to the created object.
+
+An object normally has:
+
+- Identity
+- State
+- Behavior
+
+Objects do not have to represent physical real-world entities. They can also represent concepts such as:
+
+- A transaction
+- A configuration
+- A validation rule
+- A database connection
+- A scheduled task
+
+---
+
+## Question 5: What is the difference between a class and an object?
+
+| Class                               | Object                                  |
+| ----------------------------------- | --------------------------------------- |
+| Defines a type                      | Is an instance of that type             |
+| Describes fields and behavior       | Contains runtime state                  |
+| Declared using `class`              | Commonly created using `new`            |
+| One class can create many objects   | Each object has its own identity        |
+| Class metadata is loaded by the JVM | Object data normally exists on the heap |
+
+```java
+class Car {
+    private String registrationNumber;
 }
 
-## Question 4: What is inheritance in Java? Discuss its types.
+Car first = new Car();
+Car second = new Car();
+```
 
-Inheritance allows a class to acquire the properties and methods of another class using the 
-extends keyword. Types: 
-1. Single: One class inherits from another. 
-2. Multilevel: A chain of inheritance. 
-3. Hierarchical: Multiple classes inherit from one superclass. 
-4. Multiple (via interfaces): A class implements multiple interfaces.
+`first` and `second` are different objects created from the same class.
 
-## Question 5: Define polymorphism and its types in Java.
+It is inaccurate to say that a class occupies no memory. The JVM maintains metadata for loaded classes.
 
-Polymorphism allows methods to perform different tasks based on the object. Types: 
-1. Compile-time (Method Overloading). 
-2. Runtime (Method Overriding).
+---
 
-## Question 6: What is encapsulation? How is it implemented in Java?
+## Question 6: How can objects be created in Java?
 
-Encapsulation is bundling data (variables) and methods into a single unit (class). It's 
-implemented using: 
-1. Private access modifiers for fields. 
-2. Public getter and setter methods for access.
+The most common approach is the `new` operator:
 
-## Question 7: What are inner classes? Differentiate between static and non-static inner classes.
+```java
+Customer customer = new Customer();
+```
 
-Classes defined within another class. Types: static, non-static, local, and anonymous.
+Objects may also be created through:
 
-## Question 8: What is an object-oriented programming language?
+- Static factory methods
+- Reflection
+- Deserialization
+- Cloning
+- Dependency-injection frameworks
+- Library or framework factories
 
-Object-oriented programming (OOP) is a programming language that uses objects to bind data and the functions that operate on it. The goal of OOP is to implement real-world entities like inheritance, hiding, and polymorphism. OOP concepts include:
-❖
-Class
-❖
-Object
-❖
-Inheritance
-❖
-polymorphism
-❖
-encapsulation
-❖
-abstraction
+### Static factory example
 
-## Question 9: What are the pillars of oops ?
+```java
+Customer customer = Customer.create("Alice");
+```
 
-The four pillars of OOPS (object-oriented programming) are Inheritance, Polymorphism, Encapsulation and Data Abstraction.
+### Reflection example
 
-## Question 10: What is an class in java ?
+```java
+Customer customer =
+        Customer.class
+                .getDeclaredConstructor()
+                .newInstance();
+```
 
-➢
-A class in Java is a set of objects which shares common characteristics/ behavior and common properties/attributes.
-➢
-It is a user-defined blueprint or prototype from which objects are created.
-➢
-For example, Student is a class while a particular student named Ravi is an object
+Avoid the deprecated `Class.newInstance()` method. Use `Constructor.newInstance()` instead.
 
-## Question 11: What is an object in java ?
+---
 
-➢
-An object in Java is a basic unit of Object-Oriented Programming (OOP) and represents real-life entities.
-➢
-Objects are the instances of a class that are created to use the attributes and methods of a class.
-➢
-Java objects are very similar to the objects we can observe in the real world. A cat, a lighter, a pen, or a car areall objects.
+## Question 7: What is a constructor?
 
-## Question 12: How do you create an object in java ?
+A constructor initializes a newly created object.
 
-To create an object in Java, you use the new keyword, followed by the class name and parentheses. For example, to create an object of the class MyClass, you would write:
-MyClass myObject = new MyClass();
-Different ways to create objects in Java
-❖
-Using new keyword.
-❖
-Using new instance.
-❖
-Using clone() method.
-❖
-Using deserialization.
-❖
-Using newInstance() method of Constructor class.
+```java
+public class Customer {
 
-## Question 13: What is differ b/w class and object in java ?
+    private final String name;
 
-Class
-•
-Class is a user-defined datatype that has its own data members and member functions.
-•
-Class is a blueprint or prototype from which objects are created.
-•
-It is a logical entity.
-•
-It does not occupy any memory space.
-•
-Class is declared using the class keyword.
-Object
-•
-Object is an instance of a class.
-•
-Object is a real-world entity such as book, car, etc.
-•
-It is a physical entity.
-•
-It occupies memory space.
-•
-Object is created using the new keyword.
+    public Customer(String name) {
+        this.name = name;
+    }
+}
+```
 
-## Question 14: Explain the concept of inheritance ?
+Constructor characteristics:
 
-➢
-Inheritance is a mechanism in object-oriented programming that allows a class to inherit the properties andbehaviors of another class.
-➢
-In Java, inheritance is implemented using the extends keyword. When a class inherits from another class, it iscalled a subclass or child class, and the class it inherits from is called a superclass or parent class. The subclassinherits all of the public and protected members of the superclass, including its fields, methods, andconstructors.
-Eg :
+- Has the same name as the class
+- Has no return type
+- Runs during object creation
+- Can be overloaded
+- Is not inherited
+- Can call another constructor using `this()`
+- Can call a superclass constructor using `super()`
+
+A constructor is not an ordinary method, even though its syntax is similar.
+
+---
+
+## Question 8: What is the difference between a constructor and a method?
+
+| Constructor                                | Method                              |
+| ------------------------------------------ | ----------------------------------- |
+| Initializes an object                      | Performs behavior                   |
+| Same name as the class                     | Can have any valid identifier       |
+| Has no return type                         | May return a value or `void`        |
+| Called during object creation              | Called explicitly or by a framework |
+| Cannot be inherited                        | Can be inherited                    |
+| Can be overloaded                          | Can be overloaded and overridden    |
+| Cannot be `static`, `final`, or `abstract` | May use applicable modifiers        |
+
+---
+
+## Question 9: What is the difference between a default constructor, a no-argument constructor, and a parameterized constructor?
+
+### Default constructor
+
+A default constructor is generated by the compiler only when the programmer declares no constructor.
+
+```java
+class Product {
+}
+```
+
+The compiler conceptually provides:
+
+```java
+Product() {
+    super();
+}
+```
+
+### User-defined no-argument constructor
+
+```java
+class Product {
+
+    Product() {
+        System.out.println("Product created");
+    }
+}
+```
+
+This is a no-argument constructor, but it is not compiler-generated.
+
+### Parameterized constructor
+
+```java
+class Product {
+
+    private final String name;
+
+    Product(String name) {
+        this.name = name;
+    }
+}
+```
+
+Once any constructor is explicitly declared, Java no longer automatically creates the default constructor.
+
+---
+
+## Question 10: What is constructor overloading?
+
+Constructor overloading means declaring multiple constructors with different parameter lists.
+
+```java
+public class User {
+
+    private final String name;
+    private final String email;
+
+    public User(String name) {
+        this(name, null);
+    }
+
+    public User(String name, String email) {
+        this.name = name;
+        this.email = email;
+    }
+}
+```
+
+The constructors must differ in:
+
+- Number of parameters
+- Parameter types
+- Parameter order
+
+Return types cannot distinguish constructors because constructors have no return type.
+
+---
+
+## Question 11: What is the `this` keyword?
+
+`this` refers to the current object.
+
+### Distinguishing a field from a parameter
+
+```java
+public Customer(String name) {
+    this.name = name;
+}
+```
+
+### Calling another constructor
+
+```java
+public Customer() {
+    this("Unknown");
+}
+```
+
+### Passing the current object
+
+```java
+validator.validate(this);
+```
+
+A call to `this()` must be the first statement in a constructor.
+
+`this` cannot be used in a static context because static members do not belong to a particular object.
+
+---
+
+## Question 12: What is the `super` keyword?
+
+`super` refers to the superclass portion of the current object.
+
+It can be used to:
+
+- Call a superclass constructor
+- Access a superclass method
+- Access a hidden superclass field
+
+```java
+class Employee extends Person {
+
+    Employee(String name) {
+        super(name);
+    }
+
+    @Override
+    public void display() {
+        super.display();
+        System.out.println("Employee details");
+    }
+}
+```
+
+A call to `super()` must be the first statement in a constructor.
+
+A constructor may begin with either `this()` or `super()`, but not both directly.
+
+---
+
+## Question 13: What is inheritance?
+
+Inheritance allows a subclass to derive accessible behavior and state from a superclass.
+
+```java
 class Animal {
-String name;
-int age;
-void eat() {
-System.out.println("Animal is eating");
+
+    public void eat() {
+        System.out.println("Eating");
+    }
 }
-}
+
 class Dog extends Animal {
-String breed;
-void bark() {
-System.out.println("Dog is barking");
+
+    public void bark() {
+        System.out.println("Barking");
+    }
 }
-}
-public class Main {
-public static void main(String[] args) {
+```
+
+```java
 Dog dog = new Dog();
-dog.name = "Fido";
-dog.age = 5;
-dog.breed = "Labrador";
-dog.eat(); // Prints "Animal is eating"
-dog.bark(); // Prints "Dog is barking"
+dog.eat();
+dog.bark();
+```
+
+Important points:
+
+- Constructors are not inherited.
+- Private members are not directly accessible by subclasses.
+- Java classes support single class inheritance.
+- Every class except `Object` has a superclass.
+- Inheritance represents an **Is-A** relationship.
+
+Use inheritance only when the subclass can safely substitute for the parent type.
+
+---
+
+## Question 14: What types of inheritance does Java support?
+
+### Single inheritance
+
+```text
+Animal → Dog
+```
+
+### Multilevel inheritance
+
+```text
+Animal → Mammal → Dog
+```
+
+### Hierarchical inheritance
+
+```text
+       Animal
+       /    \
+     Dog    Cat
+```
+
+### Multiple inheritance through interfaces
+
+```java
+class SmartPhone
+        implements Camera, MusicPlayer {
 }
+```
+
+A Java class cannot extend multiple classes:
+
+```java
+// Invalid
+class C extends A, B {
+}
+```
+
+However, a class can implement multiple interfaces.
+
+Hybrid inheritance can be modeled using a combination of class inheritance and interfaces.
+
+---
+
+## Question 15: Why does Java not support multiple class inheritance?
+
+Multiple class inheritance can create ambiguity when two parent classes define the same method or state.
+
+```text
+ParentA ──┐
+          ├── Child
+ParentB ──┘
+```
+
+If both parents define `display()`, the child would need rules for deciding which implementation to inherit.
+
+Java avoids this complexity for classes and supports multiple inheritance of type through interfaces.
+
+Interfaces can still produce default-method conflicts, but Java requires the implementing class to resolve them explicitly.
+
+---
+
+## Question 16: What is polymorphism?
+
+Polymorphism means one common type can represent objects with different implementations.
+
+```java
+interface PaymentProcessor {
+    void process();
 }
 
-## Question 15: What is the purpose of super keyword ?
+class CardProcessor implements PaymentProcessor {
 
-The super keyword can be used to call the superclass constructor from the subclass constructor. This is done by using the super() keyword followed by the arguments to the superclass constructor.
-For example,
-class Superclass {
-public Superclass(int x) {
-System.out.println("Superclass constructor called with x = " + x);
-}
-}
-class Subclass extends Superclass {
-public Subclass(int x, int y) {
-super(x); // Call the superclass constructor with the value of x
-System.out.println("Subclass constructor called with y = " + y);
-}
-}
-public class Main {
-public static void main(String[] args) {
-Subclass subclass = new Subclass(10, 20);
-}
-}
-OUTPUT :
-Superclass constructor called with x = 10
-Subclass constructor called with y = 20
-
-## Question 16: What is Polymorphism in java ?
-
-➢
-Polymorphism is derived from two Greek words, “poly” and “morph”, which mean “many” and “forms”,respectively.
-➢
-Hence, polymorphism meaning in Java refers to the ability of objects to take on many forms.
-➢
-In other words, it allows different objects to respond to the same message or method call in multiple ways.
-For Example:
-public class Animal {
-public void makeSound() {
-System.out.println("Animal sound");
-}
-}
-public class Dog extends Animal {
-@Override
-public void makeSound() {
-System.out.println("Woof!");
-}
-}
-public class Cat extends Animal {
-@Override
-public void makeSound() {
-System.out.println("Meow!");
-}
-}
-public class Main {
-public static void main(String[] args) {
-Animal animal = new Animal();
-animal.makeSound(); // Prints "Animal sound"
-Dog dog = new Dog();
-dog.makeSound(); // Prints "Woof!"
-Cat cat = new Cat();
-cat.makeSound(); // Prints "Meow!"
-}
+    @Override
+    public void process() {
+        System.out.println("Processing card payment");
+    }
 }
 
-## Question 17: Explain the difer b/w method overloading & method overriding in java ?
+class BankTransferProcessor implements PaymentProcessor {
 
-Method overloading is when a class has two or more methods with the same name but different parameters. This allows us to have multiple methods with the same name that perform different tasks, depending on the arguments passed to them.
-For example, we could have a calculateArea() method that takes a single argument (the radius of a circle) and returns the area of the circle, and we could also have a calculateArea() method that takes two arguments (the length and width of a rectangle) and returns the area of the rectangle.
-Method overriding is when a subclass provides its own implementation of a method that is already defined in the superclass. This allows us to customize the behavior of a method in a subclass, without having to break the code that relies on the superclass method.
-For example, we could have a draw() method in a Shape class that simply prints the message "Drawing a shape". We could then override the draw() method in a Circle subclass to print the message "Drawing a circle". Feature Method overloading Method overriding Number of methods Two or more methods with the same name One method in the subclass and one method in the superclass Parameters Different parameters Same parameters Return type Same or different return type Same return type Inheritance Not required Required Purpose To provide multiple methods with the same name that perform different tasks To customize the behavior of a method in a subclass
+    @Override
+    public void process() {
+        System.out.println("Processing bank transfer");
+    }
+}
+```
 
-## Question 18: What is Encapsulation in java ?
+```java
+PaymentProcessor processor =
+        new CardProcessor();
 
-Encapsulation in Java is the process by which data (variables) and the code that acts upon them (methods) are integrated as a single unit. By encapsulating a class's variables, other classes cannot access them, and only the methods of the class can access them.
-public class Person {
-private String name;
-private int age;
-// getters and setters
-public String getName() {
-return name;
-}
-public void setName(String name) {
-this.name = name;
-}
-public int getAge() {
-return age;
-}
-public void setAge(int age) {
-this.age = age;
-}
-}
-In this example, the data members name and age are declared as private, and public getter and setter methods are provided to access and modify them. This way, the internal implementation of the Person class is hidden from the outside world, and the data members can only be accessed or modified through the public methods.
+processor.process();
+```
 
-## Question 19: What is abstract class in java ?
+Types of polymorphism commonly discussed in Java:
 
-Abstract class: is a restricted class that cannot be used to create objects (to access it, it must be inherited from another class). Abstract method: can only be used in an abstract class, and it does not have a body. The body is provided by the subclass (inherited from).
-abstract class Shape {
-// abstract method
-abstract void draw();
-}
-// subclass of Shape
-class Circle extends Shape {
-// overriding the draw() method
-@Override
-void draw() {
-System.out.println("Drawing a circle");
-}
-}
-// subclass of Shape
-class Rectangle extends Shape {
-// overriding the draw() method
-@Override
-void draw() {
-System.out.println("Drawing a rectangle");
-}
-}
-// main class
-public class Main {
-public static void main(String[] args) {
-// creating an object of Circle class
-Circle circle = new Circle();
-// calling the draw() method on circle object
-circle.draw();
-// creating an object of Rectangle class
-Rectangle rectangle = new Rectangle();
-// calling the draw() method on rectangle object
-rectangle.draw();
-}
-}
-Output:
-Drawing a circle
-Drawing a rectangle
+- Compile-time polymorphism through overloading
+- Runtime polymorphism through overriding
 
-## Question 20: How do you achieve abstraction in java ?
+---
 
-In Java, abstraction is achieved by interfaces and abstract classes. We can achieve 100% abstraction using interfaces. Data Abstraction may also be defined as the process of identifying only the required characteristics of an object ignoring the irrelevant details.
-// Java Program to implement
-// Java Abstraction
-// Abstract Class declared
-abstract class Animal {
-private String name;
-public Animal(String name) { this.name = name; }
-public abstract void makeSound();
-public String getName() { return name; }
+## Question 17: What is method overloading?
+
+Method overloading means declaring methods with the same name but different parameter lists.
+
+```java
+class Calculator {
+
+    int add(int first, int second) {
+        return first + second;
+    }
+
+    double add(double first, double second) {
+        return first + second;
+    }
+
+    int add(int first, int second, int third) {
+        return first + second + third;
+    }
 }
-// Abstracted class
+```
+
+Overloading is resolved by the compiler using:
+
+- Number of arguments
+- Argument types
+- Argument order
+- Applicable conversions
+
+Changing only the return type is not sufficient:
+
+```java
+// Invalid
+int find() {
+    return 1;
+}
+
+// Invalid: same parameter list
+String find() {
+    return "one";
+}
+```
+
+---
+
+## Question 18: What is method overriding?
+
+Method overriding occurs when a subclass provides a new implementation of an inherited instance method.
+
+```java
+class Animal {
+
+    public void makeSound() {
+        System.out.println("Animal sound");
+    }
+}
+
 class Dog extends Animal {
-public Dog(String name) { super(name); }
-public void makeSound()
-{
-System.out.println(getName() + " barks");
+
+    @Override
+    public void makeSound() {
+        System.out.println("Woof");
+    }
 }
+```
+
+```java
+Animal animal = new Dog();
+animal.makeSound(); // Woof
+```
+
+The actual object type determines the overridden implementation executed at runtime.
+
+### Important overriding rules
+
+- Same method name and parameter types
+- Same or covariant return type
+- Visibility cannot be reduced
+- Broader checked exceptions cannot be introduced
+- `final` methods cannot be overridden
+- Private methods are not inherited and therefore are not overridden
+- Static methods are hidden, not overridden
+
+Use `@Override` to let the compiler verify the method.
+
+---
+
+## Question 19: What is the difference between overloading and overriding?
+
+| Overloading                                   | Overriding                                       |
+| --------------------------------------------- | ------------------------------------------------ |
+| Same method name, different parameters        | Same inherited method signature                  |
+| Usually within one class                      | Requires inheritance or interface implementation |
+| Resolved at compile time                      | Dispatched at runtime                            |
+| Return type may differ when parameters differ | Same or covariant return type                    |
+| Static methods can be overloaded              | Static methods cannot be overridden              |
+| Inheritance not required                      | Inheritance or interface contract required       |
+
+---
+
+## Question 20: Can `main()` be overloaded or overridden?
+
+### Overloading
+
+Yes, `main()` can be overloaded:
+
+```java
+public static void main(String[] args) {
+    main(10);
 }
-// Abstracted class
-class Cat extends Animal {
-public Cat(String name) { super(name); }
-public void makeSound()
-{
-System.out.println(getName() + " meows");
+
+public static void main(int value) {
+    System.out.println(value);
 }
-}
-// Driver Class
-public class AbstractionExample {
-// Main Function
+```
+
+The Java launcher uses the recognized entry-point signature, normally:
+
+```java
 public static void main(String[] args)
-{
-Animal myDog = new Dog("Buddy");
-Animal myCat = new Cat("Fluffy");
-myDog.makeSound();
-myCat.makeSound();
-}
-}
-OUTPUT :
-Buddy barks
-Fluffy meows
+```
 
-## Question 21: What is differ b/w default & parameterized constructor in java ?
+### Overriding
 
-Default Constructor:
-•
-A default constructor is a constructor that has no parameters.
-•
-It is implicitly provided by the compiler if no constructor is explicitly defined in a class.
-•
-A default constructor initializes all instance variables to their default values.
-class Student {
-int id;
-String name;
-// Default constructor
-Student() {
-id = 0;
-name = "null";
-}
-}
-To create an instance of the Student class using the default constructor, you would simply write:
-Student student = new Student();
-Parameterized Constructor :
-•
-A parameterized constructor is a constructor that has one or more parameters.
-•
-It is explicitly defined by the programmer.
-•
-A parameterized constructor allows you to initialize instance variables to specific values at the time of objectcreation.
-class Student {
-int id;
-String name;
-// Parameterized constructor
-Student(int id, String name) {
-this.id = id;
-this.name = name;
-}
-}
-To create an instance of the Student class using the parameterized constructor, you would write:
-Student student = new Student(1, "John Doe");
+No. Static methods are not overridden.
 
-## Question 22: What is method overloading in java ?
+A subclass can declare another static `main()` method, but that is method hiding, not runtime overriding.
 
-Method overloading in Java means having two or more methods (or functions) in a class with the same name and different arguments (or parameters). It can be with a different number of arguments or different data types of arguments.
-class Adder{
-static int add(int a, int b){return a+b;}
-static double add(double a, double b){return a+b;}
+---
+
+## Question 21: What is encapsulation?
+
+Encapsulation means grouping state and behavior inside a type while controlling how external code interacts with that state.
+
+```java
+public class BankAccount {
+
+    private BigDecimal balance =
+            BigDecimal.ZERO;
+
+    public void deposit(BigDecimal amount) {
+        if (amount.signum() <= 0) {
+            throw new IllegalArgumentException(
+                    "Amount must be positive"
+            );
+        }
+
+        balance = balance.add(amount);
+    }
+
+    public BigDecimal getBalance() {
+        return balance;
+    }
 }
-class TestOverloading2{
-public static void main(String[] args){
-System.out.println(Adder.add(11,11));
-System.out.println(Adder.add(12.3,12.6));
-}}
-Output:
-24.9
+```
 
-## Question 23: What is java interface ?
+Encapsulation is not simply generating getters and setters for every field.
 
-An interface is an abstract type that is used to declare a behavior that classes must implement. They are similar to protocols in other languages.
-Here are some of the key features of interfaces in Java:
-❖
-Interfaces can contain only abstract methods.
-❖
-Interfaces cannot contain concrete methods.
-❖
-Interfaces cannot contain instance variables.
-❖
-Interfaces can be used to achieve multiple inheritance.
-❖
-Interfaces can be extended by other interfaces.
-❖
-Interfaces can be implemented by classes.
-class Dog implements Animal {
+This exposes internal state too freely:
+
+```java
+public void setBalance(BigDecimal balance) {
+    this.balance = balance;
+}
+```
+
+A stronger design exposes meaningful operations such as:
+
+- `deposit()`
+- `withdraw()`
+- `activate()`
+- `cancel()`
+
+Benefits include:
+
+- Protecting invariants
+- Reducing coupling
+- Hiding implementation details
+- Improving maintainability
+- Controlling state changes
+
+---
+
+## Question 22: What is abstraction?
+
+Abstraction exposes essential behavior while hiding unnecessary implementation details.
+
+```java
+interface NotificationSender {
+    void send(Notification notification);
+}
+```
+
+Callers use the abstraction:
+
+```java
+notificationSender.send(notification);
+```
+
+They do not need to know whether the implementation uses:
+
+- Email
+- SMS
+- Firebase
+- Kafka
+- A third-party API
+
+Abstraction can be implemented with:
+
+- Interfaces
+- Abstract classes
+- Encapsulated concrete classes
+- Well-designed APIs
+
+Interfaces do not automatically provide “100% abstraction.” Modern interfaces may contain default, static, and private methods with implementations.
+
+---
+
+## Question 23: What is an abstract class?
+
+An abstract class is a class that cannot be instantiated directly.
+
+```java
+abstract class Shape {
+
+    private final String name;
+
+    protected Shape(String name) {
+        this.name = name;
+    }
+
+    public abstract double area();
+
+    public String getName() {
+        return name;
+    }
+}
+```
+
+Subclass:
+
+```java
+class Circle extends Shape {
+
+    private final double radius;
+
+    Circle(double radius) {
+        super("Circle");
+        this.radius = radius;
+    }
+
+    @Override
+    public double area() {
+        return Math.PI * radius * radius;
+    }
+}
+```
+
+An abstract class may contain:
+
+- Abstract methods
+- Concrete methods
+- Constructors
+- Instance fields
+- Static fields and methods
+- Methods with different access levels
+
+An abstract class may contain zero abstract methods.
+
+An abstract method is not automatically `public`; it may also be `protected` or package-private.
+
+---
+
+## Question 24: What is an interface?
+
+An interface defines a contract that implementing classes agree to satisfy.
+
+```java
+public interface PaymentProcessor {
+
+    PaymentResult process(PaymentRequest request);
+}
+```
+
+Implementation:
+
+```java
+public class CardPaymentProcessor
+        implements PaymentProcessor {
+
+    @Override
+    public PaymentResult process(
+            PaymentRequest request
+    ) {
+        return new PaymentResult(true);
+    }
+}
+```
+
+Modern interfaces may contain:
+
+- Abstract instance methods
+- Default methods
+- Static methods
+- Private instance methods
+- Private static methods
+- Constants
+
+Interface fields are implicitly:
+
+```java
+public static final
+```
+
+Interfaces cannot contain normal per-object instance fields or constructors.
+
+---
+
+## Question 25: What types of methods can an interface contain?
+
+### Abstract method
+
+```java
+void execute();
+```
+
+Implicitly:
+
+```java
+public abstract void execute();
+```
+
+### Default method
+
+```java
+default void log() {
+    System.out.println("Executing");
+}
+```
+
+### Static method
+
+```java
+static PaymentProcessor defaultProcessor() {
+    return new DefaultPaymentProcessor();
+}
+```
+
+### Private instance method
+
+```java
+private void validate() {
+}
+```
+
+### Private static method
+
+```java
+private static void logConfiguration() {
+}
+```
+
+Private interface methods are used to share implementation logic among default or static methods. They are not inherited by implementing classes.
+
+---
+
+## Question 26: Can an interface contain private methods?
+
+Yes.
+
+```java
+interface Auditable {
+
+    default void audit(String message) {
+        validate(message);
+        System.out.println(message);
+    }
+
+    private void validate(String message) {
+        if (message == null || message.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Message is required"
+            );
+        }
+    }
+}
+```
+
+Private interface methods:
+
+- Must have a body
+- Cannot be abstract
+- Cannot be called by implementing classes
+- Are used internally by default or private methods
+
+---
+
+## Question 27: Can a class implement multiple interfaces?
+
+Yes.
+
+```java
+class SmartDevice
+        implements Camera, MusicPlayer, GPS {
+}
+```
+
+This provides multiple inheritance of contracts.
+
+A class may also extend one class and implement multiple interfaces:
+
+```java
+class SmartDevice
+        extends ElectronicDevice
+        implements Camera, GPS {
+}
+```
+
+---
+
+## Question 28: What happens when two interfaces provide the same default method?
+
+Consider:
+
+```java
+interface First {
+
+    default void display() {
+        System.out.println("First");
+    }
+}
+
+interface Second {
+
+    default void display() {
+        System.out.println("Second");
+    }
+}
+```
+
+A class implementing both must resolve the conflict:
+
+```java
+class Combined implements First, Second {
+
+    @Override
+    public void display() {
+        First.super.display();
+        Second.super.display();
+    }
+}
+```
+
+The class may also provide a completely new implementation:
+
+```java
 @Override
-public void animalSound() {
-// The body of animalSound() is provided here
+public void display() {
+    System.out.println("Combined");
 }
-@Override
-public void run() {
-// The body of run() is provided here
+```
+
+Java does not silently choose one conflicting default implementation.
+
+---
+
+## Question 29: What is the difference between an abstract class and an interface?
+
+| Abstract class                             | Interface                                                 |
+| ------------------------------------------ | --------------------------------------------------------- |
+| Represents a base class                    | Defines a contract or capability                          |
+| Can contain instance state                 | Cannot contain normal instance fields                     |
+| Can have constructors                      | Cannot have constructors                                  |
+| Can contain abstract and concrete methods  | Can contain abstract, default, static and private methods |
+| Methods can use different access modifiers | Abstract methods are public                               |
+| A class extends only one class             | A class implements multiple interfaces                    |
+| Useful for closely related classes         | Useful for independent implementations                    |
+| Can contain non-final instance fields      | Fields are public static final constants                  |
+
+### Use an abstract class when
+
+- Implementations share state.
+- Common constructor logic is needed.
+- Protected helper methods are useful.
+- Types form a strong hierarchical relationship.
+
+### Use an interface when
+
+- Defining a capability or contract
+- Multiple implementations may be unrelated
+- Multiple contracts are needed
+- Loose coupling is important
+
+---
+
+## Question 30: What is composition?
+
+Composition means building a class using other objects rather than inheriting their implementation.
+
+```java
+class OrderService {
+
+    private final PaymentProcessor paymentProcessor;
+    private final InventoryService inventoryService;
+
+    OrderService(
+            PaymentProcessor paymentProcessor,
+            InventoryService inventoryService
+    ) {
+        this.paymentProcessor = paymentProcessor;
+        this.inventoryService = inventoryService;
+    }
 }
+```
+
+This is a Has-A relationship:
+
+```text
+OrderService has a PaymentProcessor
+OrderService has an InventoryService
+```
+
+---
+
+## Question 31: What is the difference between composition and inheritance?
+
+| Composition                          | Inheritance                                 |
+| ------------------------------------ | ------------------------------------------- |
+| Has-A relationship                   | Is-A relationship                           |
+| Reuses behavior through delegation   | Reuses inherited implementation             |
+| Can change collaborators more easily | Relationship is fixed in the type hierarchy |
+| Lower coupling                       | Often stronger coupling                     |
+| Supports multiple collaborators      | Class can extend only one superclass        |
+| Usually easier to test               | May expose parent implementation details    |
+| Preferred for behavior reuse         | Best for true substitutable specialization  |
+
+### Composition example
+
+```java
+class ReportService {
+
+    private final ReportFormatter formatter;
+
+    ReportService(ReportFormatter formatter) {
+        this.formatter = formatter;
+    }
 }
+```
 
-## Question 24: Explain the differ b/w abstract classes and interfaces in java ?Feature Abstract Class Interface Definition A class that is declared abstract cannot be instantiated, but it can be subclassed. An interface is a reference type that is used to declare a set of abstract methods. Methods Abstract classes can have both abstract and non-abstract methods. Interfaces can only have abstract methods. Variables Abstract classes can have variables. Interfaces cannot have variables. Inheritance Abstract classes can only be extended by one class. Interfaces can be implemented by multiple classes. Implementation Abstract classes can provide default implementations for abstract methods. Interfaces cannot provide implementations for abstract methods.
+### Inheritance example
 
-## Question 25: Can you implement multiple interfaces in java ?
-
-our class can implement more than one interface, so the implements keyword is followed by a comma-separated list of the interfaces implemented by the class. By convention, the implements clause follows the extends clause, if there is one.
-
-## Question 26: What is a java Abstract class ?
-
-Abstract class: is a restricted class that cannot be used to create objects (to access it, it must be inherited from another class). Abstract method: can only be used in an abstract class, and it does not have a body.
-
-## Question 27: What is the purpose of the getClass() method in java ?
-
-getClass() in Java is a method of the Object class present in java. lang package. getClass() returns the runtime class of the object "this". This returned class object is locked by static synchronized method of the represented class.
-Object obj = new String("Hello, world!");
-Class c = obj.getClass();
-System.out.println(c.getName());
-
-## Question 28: Explain try, catch and finally blocks in java ? 1. try Block Enclose the code that might throw an exception within a try block. If an exception occurs within the try block, that exception is handled by an exception handler associated with it. The try block contains at least one catch block or finally block. The syntax of the try-catch block: try{ //code that may throw exception }catch(Exception_class_Name ref){} The syntax of a try-finally block: try{ //code that may throw exception }finally{} 2. catch Block Java catch block is used to handle the Exception. It must be used after the try block only. You can use multiple catch blocks with a single try. Syntax: try { //code that cause exception; } catch(Exception_type e) { //exception handling code } 3 finally Block
-
-• Java finally block is a block that is used to execute important code such as closing connection, stream, etc.
-• Java finally block is always executed whether an exception is handled or not.
-• Java finally block follows try or catch block.
-• For each try block, there can be zero or more catch blocks, but only one finally block.
-• The finally block will not be executed if the program exits(either by calling System.exit() or by causing a fatal error that causes the process to abort). Syntax: try { // Code that might throw an exception } catch (ExceptionType1 e1) { // Code to handle ExceptionType1 } catch (ExceptionType2 e2) { // Code to handle ExceptionType2 } // ... more catch blocks if necessary ... finally { // Code to be executed always, whether an exception occurred or not } Example 1: In this example, we have used FileInputStream to read the simple.txt file. After reading a file the resource FileInputStream should be closed by using finally block. public class FileInputStreamExample { public static void main(String[] args) { FileInputStream fis = null; try { File file = new File("sample.txt"); fis = new FileInputStream(file); int content; while ((content = fis.read()) != -1) { // convert to char and display it System.out.print((char) content); } } catch (IOException e) { e.printStackTrace(); } finally { if (fis != null) { try { fis.close(); } catch (IOException e) { // TODO Auto-generated catch block e.printStackTrace(); } } } } }
-
-## Question 29: What is the purpose of import statement in java ?An import statement tells Java which class you mean when you use a short name (like List ). It tells Java where to find the definition of that class. You can import just the classes you need from a package as shown below. Just provide an import statement for each class that you want to use. Import statement in Java is helpful to take a class or all classes visible for a program specified under a package, with the help of a single statement.
-
-import java.util.List;
-import java.util.*;
-import static java.lang.Math.PI;
-
-## Question 30: Interface vs abstract class?
-
-No answer provided yet.
-
-## Question 31: Overloading vs overriding?
-
-No answer provided yet.
-
-## Question 32: Composition vs inheritance?
-
-No answer provided yet.
-
-## Question 33: What happens when a mutable object is used as a `HashMap` key?
-
-No answer provided yet.
-
-## Question 34: What is a record and when would you use one over a class?
-
-No answer provided yet.
-
-## Question 35: What are sealed classes and what problem do they solve?
-
-No answer provided yet.
-
-## Question 36: What is the Java Collections Framework? Name its main interfaces.
-
-A unified architecture for storing and manipulating groups of objects, including interfaces 
-like List, Set, and Map.
-
-## Question 37: What is the purpose of iterator interface in java ?
-
-Java Iterator Interface of java collections allows us to access elements of the collection and is used to iterate over the elements in the collection(Map, List or Set). It helps to easily retrieve the elements of a collection and perform operations on each element.
-The Iterator interface has three methods:
-❖
-hasNext() - Returns true if the iterator has more elements.
-❖
-next() - Returns the next element in the iteration.
-❖
-remove() - Removes the last element returned by the next() method from the collection.
-Eg :
-import java.util.ArrayList;
-import java.util.Iterator;
-public class Main {
-public static void main(String[] args) {
-ArrayList<String> names = new ArrayList<>();
-names.add("John");
-names.add("Doe");
-names.add("Jane");
-Iterator<String> iterator = names.iterator();
-while (iterator.hasNext()) {
-String name = iterator.next();
-System.out.println(name);
-}
-}
-}
-Output :
-John
-Doe
-Jane
-
-## Question 38: What is the purpose of the Optional class?
-
-Optional prevents NullPointerException by representing optional values.
-
-## Question 39: What are functional interfaces? Provide examples.
-
-Interfaces with a single abstract method, e.g., Runnable.
-
-## Question 40: Discuss the role of the default keyword in interfaces.
-
-Allows adding methods to interfaces without breaking existing implementations.
-
-## Question 41: When should a normal loop be preferred over a stream?
-
-No answer provided yet.
-
-## Question 42: What happens after `javac` compiles a `.java` file — walk through class loading?
-
-No answer provided yet.
-
-## Question 43: What is the class-loading lifecycle (loading, linking, initialization)?
-
-No answer provided yet.
-
-## Question 44: How are Spring beans created (lifecycle)?
-
-No answer provided yet.
-
-## Question 45: `@Component` vs `@Bean`?
-
-No answer provided yet.
-
-## Question 46: Why prefer constructor injection?
-
-No answer provided yet.
-
-## Question 47: Types of classloaders in java?
-
-We have three types of predefined classloaders.
-1)Bootstrap classloader (loads rt.jar file)
-2)Extension classloader (loads all the jar files from ext folder)
-3)System/Application classloader(it loads .class file from classpath).
-
-## Question 48: What .class file contains ?
-
-A .class file contains byte code instructions.
-
-## Question 49: What is class?
-
-A class is a blue print of an object.
-A class is a collection of variables and methods.
-A class is a reusable component.
-A class will accept following modifiers.
-ex:
-default, public, final, abstract
-We can declare a class as follow.
-syntax:
-optional
-|
-modifier class class_name <extends> Parent_classname
-<implements> Interface_name
-{
-- // variables and methods
-}
-2)What is the difference between default class and public class?
-default class
-We can access default class within the package.
-ex: class A
-{
-}
-public class
-We can access public class within the package and outside of the package.
-ex: public class A
-{
-}
-What is final class?
-If we declare any class as final then creating child class is not possible.
-If we declare any class as final then extending some other class is not possible.
-ex:
-final class A
-{
-}
-class B extends A // invalid
-{
-}
-What is abstract class ?
-If we declare any class as abstract then creating object of that class is not possible.
-ex: abstract class A
-{
+```java
+abstract class Shape {
+    abstract double area();
 }
 
-## Question 50: What is object ?
-
-It is a outcome of a blue print.
-It is a instance of a class.
-Instance means allocating memory for our data members.
-Object class
-Object class present in java.lang package.
-Object class consider as a parent class for every java program.
-Object class contains following methods.
-toString()
-It is a method present in Object class.
-Whenever we are trying to display any object reference directly or indirectly toString()
-method will be executed.
-Data Hiding
-It is used to hide the data from the outsider.
-It means outside person must not access our data directly.
-Using private modifier we can implement data hiding concept.
-ex: class Account
-{
-private double balance;
+class Circle extends Shape {
+    // Genuine specialized Shape
 }
+```
 
-## Question 51: Types of objects?
+A common guideline is:
 
-We have two types of objects.
-1)Immutable object
-After object creation if we perform any changes then for every change a new object
-will be created such behaviour is called immutable object.
-ex: String
-Wrapper classes.
-2)Mutable object
-After object creation if we perform any changes then all the changes will reflect to single
-object such behaviour is called mutable object.
-ex: StringBuffer
-StringBuilder
+> Prefer composition over inheritance unless the subtype relationship is genuine and substitutable.
 
-## Question 52: What is singleton class?
+---
 
-A class which allows us to create only one object is called singleton class.
-To declare a singleton class we required private constructor and static method.
-ex: class Singleton
-{
-private static Singleton singleton=null;
-private Singleton()
-{
+## Question 32: What are nested and inner classes?
+
+A nested class is declared inside another class.
+
+```java
+class Outer {
+
+    static class StaticNested {
+    }
+
+    class Inner {
+    }
 }
-public static Singleton getInstance()
-{
-if(singleton==null)
-{
-singleton=new Singletone();
-}
-return singleton;
-}
-}
+```
 
-## Question 53: What is Interfaces?
+### Static nested class
 
-Interface is a collection of zero or more abstract methods.
-Abstract method is a incomplete method which ends with semicolon and does not have any body.
-ex:
-public abstract void m1();
-It is not possible to create object for interfaces.
-To write the implementation of abstract methods of an interface we will use implementation class.
-It is possible to create object for implementation class because it contains method with body.
-By default , every abstract method is a public and abstract.
-Interface contains only constants i.e public static final.
-Syntax: interface interface_name
-{
-- //constants
-- //abstract method
-}
-In java, a class can't extends more then one class.
-But interface can extends more then one interface.
+- Does not require an enclosing object
+- Cannot directly access enclosing instance members
+- Is associated with the enclosing class
 
-## Question 54: What is Abstract class?
+```java
+Outer.StaticNested nested =
+        new Outer.StaticNested();
+```
 
-Abstract class is a collection of zero or more abstract methods and zero or more concrete methods.
-A "abstract" keyword is applicable only for class and method but not for variable.
-It is not possible to create object for abstract class.
-To write the implementation of abstract methods of an abstract class we will use sub classes.
-By default every abstract method is a public and abstract.
-Abstract class contains only instance variables.
-syntax:
-abstract class class_name
-{ - //instance variables
-- //abstract methods
-- //concrete methods
-}
+### Non-static member inner class
 
-## Question 55: What is Abstraction?
+- Requires an enclosing object
+- Can directly access enclosing instance members
 
-Hiding the internal implementation and high lighting the set of services is called abstraction.
-Best example of abstraction is ATM machine, coffee machine,calcular, phone and etc.
-The main advantages of abstraction are.
-1)It gives security because it will hide internal implementation from the outsider.
+```java
+Outer outer = new Outer();
+Outer.Inner inner = outer.new Inner();
+```
 
-## Question 56: What is Encapsulation?
+Other forms include:
 
-The process of encapsulating or grouping variables and it's associate methods in a
-single entity is called encapsulation.
-In encapsulation for every variable we need to declare setter and getter methods.
-A class is said to be encapsulated class if it supports data hiding + abstraction.
-The main advantages of encapsulation are.
-1)It gives security.
-2)Enhancement becomes more easy.
-3)It provides flexibility to the enduser to use the system.
-4)It improves maintainability of an application.
-The main disadvantage of encpasulation is ,it will increase the length of our code and
-slow down the execution process.
-ex: class Employee
-{
-private int empId;
-//setter
-public void setEmpId(int empId)
-{
-this.empId=empId;
-}
-//getter
-public int getEmpId()
-{
-return empId;}
-}
+- Local classes
+- Anonymous classes
 
-## Question 57: What is Constructor?
+Older material often says that inner classes cannot declare static members. Modern Java permits static members in inner classes, although static nested classes remain a distinct and usually clearer construct.
 
-Constructor is a special method which is used to initialize an object.
-ex: Test t=new Test();
-Having same name as class name is called constructor.
-A constructor will execute when we create an object.
-A constructor does not allowed any returntype.
-A constructor will accept following modifiers.
-ex:default, public, private , protected
-ex:class A
-{
-A()
-{
-System.out.println("0-arg const");
-}
-}
-ex: class A
-{
-A(int i)
-{
-System.out.println("parameterized const");
-}
-}
-1)Userdefined constructor
-A constructor which is created by the user based on the application requirement
-is called userdefined constructor.
-It is categories into two types.
-i)Zero Argument constructor
-ii) Parameterized constructor
-i)Zero Argument constructor
-Suppose if we are not passing atleast one argument to userdefined constructor is
-called zero argument constructor.
-2) Parameterized constructor
-Suppose if we are passing atleast one argument to userdefined constructor is
-called parameterized argument constructor.
-2)What is default constructor?
-It is a compiler generated constructor for every java program where we are not
-defining any constructor.
-Default constructor is a empty implementation.
-To see the default constructor we need to use below command.
-ex: javap -c Test
+---
 
-## Question 58: What is Constructor Overloading:
+## Question 33: What does `getClass()` do?
 
-Having same constructor name with difference parameters in a single class is
-called constructor overloading.
+`getClass()` is a final method inherited from `Object`. It returns the runtime class of an object.
 
-## Question 59: What is Method Overloading?
+```java
+Object value = "Java";
 
-Having same method name with different parameters in a single class is called
-method overloading.
-All the methods present in a class are called overloaded methods.
-Method resolution will taken care by compiler based on reference type.
-ex: class A
-{
-public void m1()
-{
-System.out.println("0-arg method");
-}
-public void m1(int i)
-{
-System.out.println("int-arg method");
-}
-}
+Class<?> runtimeType = value.getClass();
 
-## Question 60: Can we overload main method in java?
+System.out.println(runtimeType.getName());
+// java.lang.String
+```
 
-Yes, we can overload main method in java.But JVM always execute main method
-with String[] parameter only.
+It is useful for:
 
-## Question 61: Can we override final methods in java?
+- Reflection
+- Framework metadata
+- Diagnostics
+- Runtime type inspection
 
-ans) No , we can't override final methods in java.
+A class’s static synchronized methods synchronize using the corresponding `Class` object, but this is not the main purpose of `getClass()`.
 
-## Question 62: Can we override static methods in java?
+---
 
-No , we can't override static methods in java.
+## Question 34: What is a marker interface?
 
-## Question 63: Can we override main method in java?
+A marker interface is an interface with no declared methods that communicates metadata about a class.
 
-No , we can't override main method because it is static.
+Examples include:
 
-## Question 64: What is this keyword?
-
-A "this" keyword is a java keyword which is used to refer current class
-object reference.
-We can utility this keyword in following ways.
-i)To refer current class variables
-ii)To refer current class methods
-iii)To refer current class constructors
-
-## Question 65: what is Super Keyword?
-
-A "super" keyword is a java keyword which is used to refer super class object
-reference.
-We can utility super keyword in following ways.
-i)To refer super class variables
-ii)To refer super class methods
-iii)To refer super class constructors
-
-## Question 66: What is polymorphism?
-
-Polymorphism has taken from Greek Word.
-Here poly means many and morphism means forms.
-The ability to represent in different forms is called polymorphism.
-In java, polymorphism is categories into two types.
-1)Compile time polymorphism/ static polymorphism / early binding.
-A polymorphism which exhibits at compile time is called compile time polymorphism.
-ex: Method overloading
-Method Hiding
-2)Runtime polymorphism / dynamic polymorphism / late binding.
-A polymorphism which exhibits at runtime is called run time polymorphism.
-ex: Method overriding
-
-## Question 67: What is Inheritance?
-
-Inheritance is a mechanism where one class will derived from the properties from
-another class.
-Using "extends" keyword we can implements inheritance.
-We have five types of inheritance.
-1) Single level inheritance.
-2) Multi level inheritance
-3) Multiple inheritance
-4) Hierarchical inheritance
-5) Hybrid inheritance
-
-## Question 68: What are the inheritance not support by java?
-
-Java does not support multiple inheritance and hybrid inheritance.
-
-## Question 69: Why java does not support multiple inheritance?
-
-There is a chance of raising ambiguity problem that's why java does not
-support multiple inheritance.
-Ex:
-P1.m1() p2.m1()
-|-----------------------------|
-|
-C.m1();
-But from java 1.8 version onwards java supports multiple inheritance through
-default methods of interface.
-
-## Question 70: What is marker interface?
-
-An interface which does not have any constants and abstract methods is called marker interface.
-In general, empty interface is called marker interface.
-Marker interfaces are empty interfaces but by using those interfaces we get some ability to do.
-ex: Serializable
+```java
+Serializable
+Cloneable
 Remote
+```
 
-## Question 71: What is inner class?
+Example:
 
-Sometimes we will declare a class inside another class such concept
-is called inner class.
-ex:class Outer_Class
-{
-class Inner_Class
-{
-- //code to be execute
+```java
+class UserSession implements Serializable {
 }
+```
+
+Marker interfaces allow APIs or runtime mechanisms to detect a capability using the type system:
+
+```java
+if (object instanceof Serializable) {
+    // Object declares serialization capability
 }
-Inner classes introduced as a part of event handling to remove GUI bugs.
-But because of powerful features and benefits of inner classes, Programmers started
-to use inner classes in regular programming code.
-Inner class does not accept static members i.e static variable, static method and
-static block.
+```
 
-## Question 72: what is Wrapper classes?
+Annotations are often used for metadata today, but marker interfaces remain useful when type relationships or `instanceof` checks are required.
 
-The main objective of wrapper class is used to wrap primitive to wrapper object
-and vice versa.
-To defined serveral utility methods.
-Primitive type Wrapper class
-byte Byte
-short Short
-int Integer
-long Long
-float Float
-double Double
-boolean Boolean
-char Character
-constructors
-Every wrapper contains following two constructors.One will take corresponding primitive as an argument and another will take corresponding String as an argument.
-wrapper class constructor
-Byte byte or String
-Short short or String
-Integer int or String
-Long long or String
-Float float or String
-Double double or String
-Boolean boolean or String
-Character char
+---
 
-## Question 73: Types of ResultSet objects?
+## Question 35: What is a record?
 
-We have two types of ResultSet objects in jdbc.
-1)Non-Scrollable ResultSet object
-2)Scrollable ResultSet object
-1)Non-Scrollable ResultSet object
-By default every ResultSet object is a non-scrollable ResultSet object.
-It allows us to read the records sequentially or uni-directionally such type of ResultSet object is called non-scrollable ResultSet object.
-2)Scrollable ResultSet object
-It allows us to read the records non-sequentially , bi-directionally or randomly such type of ResultSet object is called scrollable ResultSet object.
+A record is a compact syntax for defining a data-oriented class.
 
-## Question 74: Types of Jsp Implicit Objects
+```java
+public record CustomerDto(
+        long id,
+        String name,
+        String email
+) {
+}
+```
 
-There are 9 implicit objects present in jsp.
-Implicit objects are created by the web container that is available for every jsp program.
-Object which can be used directly without any configuration is called implicit object.
-The list of implicit objects are.
-Object Type
-out JspWriter
-request HttpServletRequest
-response HttpServletRespons
-config ServletConfig
-application ServletContext
-session HttpSession
-pageContext pageContext
-page Object
-exception Throwable
+The compiler generates:
 
+- Private final component fields
+- A canonical constructor
+- Accessor methods
+- `equals()`
+- `hashCode()`
+- `toString()`
 
+Usage:
 
-Interfaces & OOP:
-10. Is it possible to write private methods in an interface?
-11. How many types of methods can we write in an interface?
-12. What happens if we write two identical default methods in two different interfaces and try to implement them in a class? How to fix the issue?
-13. Explain the SOLID design principles.
-14. What are Liskov's substitutional principles? If we can replace the parent class object with a subclass, then why do we need inheritance?
-15. Explain and implement the Factory design pattern (with some modification).
+```java
+CustomerDto customer =
+        new CustomerDto(
+                1L,
+                "Alice",
+                "alice@example.com"
+        );
+
+System.out.println(customer.name());
+```
+
+Records are useful for:
+
+- DTOs
+- API response models
+- Configuration values
+- Immutable messages
+- Compound return values
+- Value-oriented domain objects
+
+Records are shallowly immutable. A record component may still refer to a mutable object:
+
+```java
+public record Team(List<String> members) {
+}
+```
+
+The `members` list can still be mutated unless it is defensively copied.
+
+---
+
+## Question 36: When should a record be used instead of a normal class?
+
+Use a record when:
+
+- The primary purpose is carrying data.
+- Equality should be based on component values.
+- The type should be concise and shallowly immutable.
+- Custom inheritance is not required.
+
+Use a normal class when:
+
+- Mutable lifecycle state is required.
+- The class has complex internal invariants.
+- Framework restrictions require a no-argument constructor.
+- Identity is more important than value equality.
+- The type must extend another application class.
+
+Records can implement interfaces but cannot extend another class.
+
+---
+
+## Question 37: What is a sealed class?
+
+A sealed class or interface restricts which types may directly extend or implement it.
+
+```java
+public sealed interface PaymentResult
+        permits PaymentSuccess,
+                PaymentFailure {
+}
+```
+
+Permitted implementations:
+
+```java
+public final class PaymentSuccess
+        implements PaymentResult {
+}
+
+public final class PaymentFailure
+        implements PaymentResult {
+}
+```
+
+A permitted subtype must normally be declared as one of:
+
+- `final`
+- `sealed`
+- `non-sealed`
+
+Example:
+
+```java
+public non-sealed class ExternalFailure
+        implements PaymentResult {
+}
+```
+
+Sealed types are useful for modeling closed hierarchies such as:
+
+- Payment results
+- Commands
+- Events
+- Expression trees
+- State machines
+- Domain outcomes
+
+---
+
+## Question 38: What problem do sealed classes solve?
+
+Without sealing, any external class may extend a public non-final class or implement a public interface.
+
+Sealed types let the designer explicitly control the hierarchy.
+
+Benefits include:
+
+- Stronger domain modeling
+- Known set of permitted subtypes
+- Safer refactoring
+- Better exhaustive pattern matching
+- Prevention of unauthorized extensions
+
+```mermaid
+classDiagram
+    class PaymentResult {
+        <<sealed interface>>
+    }
+
+    class PaymentSuccess {
+        <<final>>
+    }
+
+    class PaymentFailure {
+        <<final>>
+    }
+
+    class ExternalFailure {
+        <<non-sealed>>
+    }
+
+    PaymentResult <|.. PaymentSuccess
+    PaymentResult <|.. PaymentFailure
+    PaymentResult <|.. ExternalFailure
+```
+
+---
+
+# Move to `02-collections/advanced-questions.md`
+
+## What happens when a mutable object is used as a `HashMap` key?
+
+`HashMap` uses the key’s hash code to choose a bucket.
+
+If a field used by `hashCode()` or `equals()` changes after insertion, the map may search a different bucket and fail to find the key.
+
+```java
+final class UserKey {
+
+    private String username;
+
+    UserKey(String username) {
+        this.username = username;
+    }
+
+    void setUsername(String username) {
+        this.username = username;
+    }
+
+    @Override
+    public boolean equals(Object object) {
+        if (this == object) {
+            return true;
+        }
+
+        if (!(object instanceof UserKey other)) {
+            return false;
+        }
+
+        return Objects.equals(
+                username,
+                other.username
+        );
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(username);
+    }
+}
+```
+
+```java
+UserKey key = new UserKey("alice");
+
+Map<UserKey, String> map =
+        new HashMap<>();
+
+map.put(key, "data");
+
+key.setUsername("bob");
+
+System.out.println(map.get(key)); // May return null
+```
+
+The entry remains inside the map but may become effectively unreachable through normal lookup.
+
+Use immutable keys:
+
+```java
+public record UserKey(String username) {
+}
+```
+
+---
+
+## What is the Java Collections Framework?
+
+The Java Collections Framework provides interfaces and implementations for storing and processing groups of objects.
+
+Main element-based interfaces:
+
+```text
+Iterable
+└── Collection
+    ├── List
+    ├── Set
+    │   ├── SortedSet
+    │   └── NavigableSet
+    └── Queue
+        └── Deque
+```
+
+`Map` is part of the framework but does not extend `Collection` because it stores key-value mappings.
+
+Common implementations include:
+
+| Interface        | Implementations                             |
+| ---------------- | ------------------------------------------- |
+| `List`           | `ArrayList`, `LinkedList`                   |
+| `Set`            | `HashSet`, `LinkedHashSet`, `TreeSet`       |
+| `Queue`          | `PriorityQueue`                             |
+| `Deque`          | `ArrayDeque`, `LinkedList`                  |
+| `Map`            | `HashMap`, `LinkedHashMap`, `TreeMap`       |
+| Concurrent types | `ConcurrentHashMap`, `CopyOnWriteArrayList` |
+
+---
+
+## What is the purpose of `Iterator`?
+
+`Iterator` traverses a collection one element at a time.
+
+```java
+Iterator<String> iterator =
+        names.iterator();
+
+while (iterator.hasNext()) {
+    String name = iterator.next();
+
+    if (name.isBlank()) {
+        iterator.remove();
+    }
+}
+```
+
+Main operations:
+
+- `hasNext()`
+- `next()`
+- Optional `remove()`
+- `forEachRemaining()`
+
+A `Map` is not directly iterable through `Iterator`. Iterate over a map view:
+
+```java
+Iterator<Map.Entry<String, Integer>> iterator =
+        map.entrySet().iterator();
+```
+
+---
+
+# Move to `01-core-java/functional-programming/basic-questions.md`
+
+## What is `Optional`?
+
+`Optional<T>` represents a value that may or may not be present.
+
+```java
+Optional<User> user =
+        repository.findById(userId);
+```
+
+Usage:
+
+```java
+User requiredUser = user.orElseThrow(
+        () -> new UserNotFoundException(userId)
+);
+```
+
+`Optional` does not prevent all `NullPointerException`s.
+
+Recommended uses:
+
+- Method return values where absence is valid
+- Fluent transformation of optional results
+
+Usually avoid using `Optional` for:
+
+- Entity fields
+- DTO fields
+- Method parameters
+- Collection elements
+- Serialization models
+
+Do not return `null` from a method declared to return `Optional`.
+
+---
+
+## What is a functional interface?
+
+A functional interface has exactly one abstract method.
+
+```java
+@FunctionalInterface
+public interface Validator<T> {
+
+    boolean isValid(T value);
+}
+```
+
+It may still contain:
+
+- Default methods
+- Static methods
+- Private methods
+- Methods inherited from `Object`
+
+Examples include:
+
+- `Runnable`
+- `Callable`
+- `Function<T, R>`
+- `Consumer<T>`
+- `Supplier<T>`
+- `Predicate<T>`
+- `Comparator<T>`
+
+Usage with a lambda:
+
+```java
+Predicate<String> nonBlank =
+        value -> value != null
+                && !value.isBlank();
+```
+
+---
+
+## What is the role of default methods in interfaces?
+
+Default methods allow interfaces to add behavior without requiring every existing implementation to immediately implement the new method.
+
+```java
+interface Logger {
+
+    void log(String message);
+
+    default void logError(String message) {
+        log("ERROR: " + message);
+    }
+}
+```
+
+Common uses:
+
+- Backward-compatible interface evolution
+- Shared convenience behavior
+- Adapter methods
+
+Default methods do not make interfaces equivalent to abstract classes because interfaces still cannot hold ordinary instance state.
+
+---
+
+## When should a normal loop be preferred over a stream?
+
+Prefer a normal loop when:
+
+- The algorithm requires complex control flow.
+- `break`, `continue`, or early return is important.
+- Checked exceptions are involved.
+- Multiple variables change during iteration.
+- Performance profiling shows stream overhead matters.
+- Debugging each step is easier imperatively.
+- The operation includes many side effects.
+
+Loop example:
+
+```java
+for (Order order : orders) {
+    if (!order.isValid()) {
+        continue;
+    }
+
+    if (order.isPriority()) {
+        return order;
+    }
+}
+```
+
+Prefer streams when the operation is a clear transformation pipeline:
+
+```java
+List<String> names = users.stream()
+        .filter(User::isActive)
+        .map(User::getName)
+        .sorted()
+        .toList();
+```
+
+Streams are not automatically faster or better than loops.
+
+---
+
+# Move to `05-jvm/class-loading.md`
+
+## What happens after `javac` compiles a `.java` file?
+
+```mermaid
+flowchart LR
+    A[Java source] -->|javac| B[Class file]
+    B --> C[Class Loading]
+    C --> D[Verification]
+    D --> E[Preparation]
+    E --> F[Resolution]
+    F --> G[Initialization]
+    G --> H[Interpretation and JIT Compilation]
+    H --> I[Native Execution]
+```
+
+### Compilation
+
+`javac` compiles Java source into one or more `.class` files.
+
+### Loading
+
+A class loader locates the class bytes and creates the corresponding JVM class representation.
+
+### Linking
+
+Linking includes:
+
+1. Verification
+2. Preparation
+3. Resolution
+
+### Initialization
+
+Static fields and static initialization blocks are executed.
+
+### Execution
+
+The JVM may initially interpret bytecode and later JIT-compile frequently executed methods into optimized native instructions.
+
+---
+
+## What does a `.class` file contain?
+
+A class file contains more than bytecode instructions.
+
+It may include:
+
+- Magic number and class-file version
+- Constant pool
+- Class and superclass information
+- Interface information
+- Fields
+- Methods
+- Bytecode
+- Exception tables
+- Generic-signature metadata
+- Runtime annotation metadata
+- Debugging information
+- Bootstrap method information
+- Module, record, nest and sealed-class attributes where applicable
+
+---
+
+## What is the class-loading lifecycle?
+
+The lifecycle consists of:
+
+1. Loading
+2. Linking
+   - Verification
+   - Preparation
+   - Resolution
+
+3. Initialization
+4. Use
+5. Unloading, when the defining class loader becomes unreachable
+
+### Verification
+
+Checks that class-file structure and bytecode are valid.
+
+### Preparation
+
+Allocates class-level storage and assigns default values to static fields.
+
+### Resolution
+
+Converts symbolic references into direct runtime references.
+
+### Initialization
+
+Executes static field initializers and static blocks.
+
+```java
+class Configuration {
+
+    static int timeout = loadTimeout();
+
+    static {
+        System.out.println("Configuration initialized");
+    }
+}
+```
+
+---
+
+## What are the main built-in class loaders?
+
+Modern Java commonly uses:
+
+1. Bootstrap class loader
+2. Platform class loader
+3. Application or system class loader
+
+### Bootstrap class loader
+
+Loads core platform classes.
+
+### Platform class loader
+
+Loads platform modules and libraries that are not loaded by the bootstrap loader.
+
+### Application class loader
+
+Loads application classes from the configured class path or module path.
+
+The old **extension class loader** and `jre/lib/ext` mechanism were removed from modern Java and replaced conceptually by the platform class loader and module system.
+
+---
+
+# Move to `06-spring/dependency-injection.md`
+
+## What is the difference between `@Component` and `@Bean`?
+
+### `@Component`
+
+Placed on a class discovered through component scanning.
+
+```java
+@Component
+public class PaymentValidator {
+}
+```
+
+Specialized component stereotypes include:
+
+- `@Service`
+- `@Repository`
+- `@Controller`
+- `@RestController`
+
+Use `@Component` when:
+
+- You control the class.
+- Automatic component scanning is suitable.
+- The class naturally belongs to the application.
+
+### `@Bean`
+
+Placed on a method inside a configuration class.
+
+```java
+@Configuration
+public class ApplicationConfiguration {
+
+    @Bean
+    public Clock applicationClock() {
+        return Clock.systemUTC();
+    }
+}
+```
+
+Use `@Bean` when:
+
+- Configuring a third-party class
+- Construction requires custom logic
+- Selecting among implementations
+- Explicit configuration improves clarity
+- Bean creation depends on configuration values
+
+| `@Component`                          | `@Bean`                                     |
+| ------------------------------------- | ------------------------------------------- |
+| Applied to a class                    | Applied to a factory method                 |
+| Discovered through scanning           | Declared explicitly                         |
+| Best for application-owned components | Best for custom or third-party construction |
+| Less creation control                 | Full creation control                       |
+
+---
+
+## Why prefer constructor injection?
+
+```java
+@Service
+public class OrderService {
+
+    private final OrderRepository repository;
+    private final PaymentService paymentService;
+
+    public OrderService(
+            OrderRepository repository,
+            PaymentService paymentService
+    ) {
+        this.repository = repository;
+        this.paymentService = paymentService;
+    }
+}
+```
+
+Constructor injection is preferred because it:
+
+- Makes dependencies explicit
+- Supports `final` fields
+- Prevents partially initialized objects
+- Makes unit testing easier
+- Works without reflection-based field mutation
+- Reveals excessive dependencies
+- Supports immutable service design
+
+Field injection hides dependencies and makes direct unit construction more difficult.
+
+---
+
+# Move to `06-spring/bean-lifecycle.md`
+
+## How are Spring beans created?
+
+A simplified singleton bean lifecycle is:
+
+```mermaid
+flowchart TD
+    A[Instantiate Bean] --> B[Inject Dependencies]
+    B --> C[Aware Callbacks]
+    C --> D[BeanPostProcessor Before Initialization]
+    D --> E["@PostConstruct / afterPropertiesSet / init method"]
+    E --> F[BeanPostProcessor After Initialization]
+    F --> G[Proxy May Be Returned]
+    G --> H[Bean Ready for Use]
+    H --> I["@PreDestroy / destroy callback"]
+```
+
+Typical stages:
+
+1. Bean definition is discovered.
+2. Bean is instantiated.
+3. Dependencies and properties are injected.
+4. Aware callbacks are invoked where applicable.
+5. `BeanPostProcessor` runs before initialization.
+6. Initialization callbacks run.
+7. `BeanPostProcessor` runs after initialization.
+8. The bean may be wrapped in a proxy.
+9. The bean is available to the application.
+10. Destruction callbacks run when the context closes.
+
+Common lifecycle annotations:
+
+```java
+@PostConstruct
+public void initialize() {
+}
+
+@PreDestroy
+public void cleanup() {
+}
+```
+
+Prototype beans do not receive automatic destruction callbacks from the container after being handed to the caller.
+
+---
+
+# Move to `08-design-patterns/singleton.md`
+
+## What is a singleton?
+
+A singleton restricts a class to one instance within a particular class-loader context.
+
+Avoid the non-thread-safe implementation from the source:
+
+```java
+if (instance == null) {
+    instance = new Singleton();
+}
+```
+
+Two threads can create separate objects concurrently.
+
+### Initialization-on-demand holder
+
+```java
+public final class ApplicationRegistry {
+
+    private ApplicationRegistry() {
+    }
+
+    private static class Holder {
+        private static final ApplicationRegistry INSTANCE =
+                new ApplicationRegistry();
+    }
+
+    public static ApplicationRegistry getInstance() {
+        return Holder.INSTANCE;
+    }
+}
+```
+
+### Enum singleton
+
+```java
+public enum ApplicationRegistry {
+    INSTANCE
+}
+```
+
+An enum singleton provides simple thread-safe initialization and protects against ordinary serialization-based duplication.
+
+A singleton is not automatically one instance across:
+
+- Multiple JVMs
+- Multiple containers
+- Multiple pods
+- Multiple class loaders
+
+---
+
+# Move to `08-design-patterns/solid.md`
+
+## What are the SOLID principles?
+
+### Single Responsibility Principle
+
+A class should have one coherent responsibility and one primary reason to change.
+
+### Open/Closed Principle
+
+Software should be open for extension but closed for unnecessary modification.
+
+### Liskov Substitution Principle
+
+A subtype must safely replace its parent type without breaking expected behavior.
+
+### Interface Segregation Principle
+
+Clients should not depend on methods they do not use.
+
+### Dependency Inversion Principle
+
+High-level policy should depend on abstractions rather than concrete infrastructure.
+
+---
+
+## What is the Liskov Substitution Principle?
+
+The Liskov Substitution Principle states that an instance of a subtype should be usable wherever its parent type is expected without violating the parent contract.
+
+A subtype must not unexpectedly:
+
+- Reject valid parent inputs
+- Weaken parent guarantees
+- Change documented behavior incompatibly
+- Throw unsupported-operation exceptions for expected behavior
+
+Problematic design:
+
+```java
+class Bird {
+    void fly() {
+    }
+}
+
+class Penguin extends Bird {
+
+    @Override
+    void fly() {
+        throw new UnsupportedOperationException();
+    }
+}
+```
+
+Better:
+
+```java
+interface Bird {
+}
+
+interface FlyingBird extends Bird {
+    void fly();
+}
+
+class Penguin implements Bird {
+}
+
+class Eagle implements FlyingBird {
+
+    @Override
+    public void fly() {
+    }
+}
+```
+
+Inheritance provides reuse and polymorphism only when the subtype is behaviorally substitutable.
+
+---
+
+# Move to `08-design-patterns/factory.md`
+
+## What is the Factory pattern?
+
+A factory encapsulates object-creation decisions.
+
+```java
+public interface NotificationSender {
+    void send(String message);
+}
+```
+
+Implementations:
+
+```java
+public class EmailSender
+        implements NotificationSender {
+
+    @Override
+    public void send(String message) {
+        System.out.println("Email: " + message);
+    }
+}
+
+public class SmsSender
+        implements NotificationSender {
+
+    @Override
+    public void send(String message) {
+        System.out.println("SMS: " + message);
+    }
+}
+```
+
+Factory:
+
+```java
+public final class NotificationSenderFactory {
+
+    private NotificationSenderFactory() {
+    }
+
+    public static NotificationSender create(
+            NotificationType type
+    ) {
+        return switch (type) {
+            case EMAIL -> new EmailSender();
+            case SMS -> new SmsSender();
+        };
+    }
+}
+```
+
+Usage:
+
+```java
+NotificationSender sender =
+        NotificationSenderFactory.create(
+                NotificationType.EMAIL
+        );
+
+sender.send("Order confirmed");
+```
+
+The factory:
+
+- Hides construction details
+- Centralizes implementation selection
+- Reduces direct coupling to concrete classes
+
+In dependency-injection applications, constructor injection and framework configuration often replace manual static factories.
+
+---
+
+# Move to `07-database/jdbc-resultset.md`
+
+## What types of `ResultSet` are available?
+
+JDBC defines three primary cursor types:
+
+### `TYPE_FORWARD_ONLY`
+
+The cursor moves forward only.
+
+### `TYPE_SCROLL_INSENSITIVE`
+
+The cursor can move forward and backward but generally does not reflect later database changes.
+
+### `TYPE_SCROLL_SENSITIVE`
+
+The cursor can move in both directions and may reflect later database changes, depending on the driver.
+
+Example:
+
+```java
+Statement statement =
+        connection.createStatement(
+                ResultSet.TYPE_SCROLL_INSENSITIVE,
+                ResultSet.CONCUR_READ_ONLY
+        );
+```
+
+Concurrency modes include:
+
+- `CONCUR_READ_ONLY`
+- `CONCUR_UPDATABLE`
+
+Support depends on the JDBC driver and database.
+
+---
+
+# Move to `09-legacy-web/jsp.md`
+
+## What are the JSP implicit objects?
+
+JSP traditionally provides nine implicit objects:
+
+| Object        | Type or purpose                       |
+| ------------- | ------------------------------------- |
+| `request`     | `HttpServletRequest`                  |
+| `response`    | `HttpServletResponse`                 |
+| `out`         | `JspWriter`                           |
+| `session`     | `HttpSession`                         |
+| `application` | `ServletContext`                      |
+| `config`      | `ServletConfig`                       |
+| `pageContext` | `PageContext`                         |
+| `page`        | Current servlet instance              |
+| `exception`   | `Throwable`, available on error pages |
+
+JSP is now mainly associated with legacy server-rendered Java applications. Modern Spring applications commonly use REST APIs, Thymeleaf, or separate frontend frameworks.
+
+---
+
+# Duplicate Questions to Merge
+
+| Original questions   | Consolidated question                                  |
+| -------------------- | ------------------------------------------------------ |
+| 1, 8 and 9           | OOP and its four pillars                               |
+| 2, 21 and 57         | Constructors                                           |
+| 3, 17, 22, 31 and 59 | Overloading vs overriding                              |
+| 4, 14, 67–69         | Inheritance                                            |
+| 5, 16 and 66         | Polymorphism                                           |
+| 6, 18 and 56         | Encapsulation                                          |
+| 7 and 71             | Nested and inner classes                               |
+| 10, 13 and 49        | Class and object                                       |
+| 11 and 50            | Object                                                 |
+| 15 and 65            | `super`                                                |
+| 19, 26 and 54        | Abstract classes                                       |
+| 20 and 55            | Abstraction                                            |
+| 23, 25 and 53        | Interfaces                                             |
+| 24 and 30            | Abstract class vs interface                            |
+| 27                   | `getClass()`                                           |
+| 32                   | Composition vs inheritance                             |
+| 52                   | Singleton                                              |
+| 58                   | Constructor overloading                                |
+| 60–63                | Overloading/hiding of `main`, static and final methods |
+| 64                   | `this`                                                 |
+| 70                   | Marker interface                                       |
+
+---
+
+# Incorrect or Outdated Statements Removed
+
+The optimized version removes or corrects these claims:
+
+- Constructors are inherited.
+- A default constructor is any constructor with no parameters.
+- Interfaces contain only abstract methods.
+- Interfaces cannot contain implementations.
+- Interfaces cannot contain private methods.
+- Abstract classes contain only instance variables.
+- Abstract methods in abstract classes are automatically public.
+- Encapsulation requires getters and setters for every field.
+- Inner classes can never contain static members.
+- Java supports multiple class inheritance through interface default methods.
+- A class occupies no memory.
+- `getClass()` primarily exists for locking.
+- Wrapper classes should generally be created through constructors.
+- The extension class loader and `rt.jar` describe modern Java class loading.
+- A `.class` file contains only bytecode.
+- `Optional` prevents `NullPointerException`.
+- Streams should always replace loops.
+- The basic non-synchronized lazy singleton is thread-safe.
+- A class may extend another class when declared `final`.
+
+The unrelated exception-handling and import questions should remain in their existing Core Java topic files rather than being repeated inside OOP.

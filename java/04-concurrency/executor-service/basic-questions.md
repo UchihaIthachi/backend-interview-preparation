@@ -1,154 +1,370 @@
 # Basic Questions
 
-## Question 1: What is the Executor framework? Why use it instead of raw threads?
+### 1. `ThreadPoolExecutor` is not the foundation of every executor
 
-The Executor framework (`java.util.concurrent`) separates task submission from thread management, enabling thread reuse, resource control, and richer lifecycle management.
+This statement is too broad:
 
-- **Avoids thread creation overhead** – threads are reused from a pool.
-- **Resource control** – cap the number of concurrent threads.
-- **Task queue** – tasks queue up when all threads are busy.
-- **Lifecycle management** – orderly shutdown, await termination.
+> `ThreadPoolExecutor` is the backbone of all Executors.
 
-## Question 2: Explain the different types of thread pools in Executors factory.
+A more accurate version is:
 
-| Factory Method | Behavior | When to Use |
-| :--- | :--- | :--- |
-| `newFixedThreadPool(n)` | n threads, unbounded queue | Stable, predictable load |
-| `newCachedThreadPool()` | Grows/shrinks, 60s idle TTL | Many short-lived tasks |
-| `newSingleThreadExecutor()` | 1 thread, sequential | Ordered, serial tasks |
-| `newScheduledThreadPool(n)` | Scheduled / periodic tasks | Cron-like scheduling |
-| `newWorkStealingPool()` | ForkJoinPool, parallelism level | Parallel divide-and-conquer |
+> `ThreadPoolExecutor` is the main configurable implementation for traditional platform-thread pools. Other executors may use different implementations, such as `ForkJoinPool` for work-stealing pools.
 
-❌ **Common Mistakes**
-- Using `newCachedThreadPool()` for long-running tasks – can create unlimited threads and cause OOM.
-- Using `newFixedThreadPool` with an unbounded queue – can cause unbounded task accumulation.
+For example:
 
-## Question 3: How does ThreadPoolExecutor work internally?
+- `newFixedThreadPool()` → `ThreadPoolExecutor`
+- `newCachedThreadPool()` → `ThreadPoolExecutor`
+- `newSingleThreadExecutor()` → wrapped `ThreadPoolExecutor`
+- `newWorkStealingPool()` → `ForkJoinPool`
 
-`ThreadPoolExecutor` is the backbone of all Executors. Key constructor parameters:
+---
+
+### 2. `corePoolSize` is not always the minimum number of live threads
+
+Replace:
 
 ```java
-new ThreadPoolExecutor(
-    corePoolSize,     // min threads kept alive
-    maximumPoolSize,  // max threads allowed
-    keepAliveTime,    // idle time before non-core thread dies
-    unit,             // time unit
-    workQueue,        // task queue
-    threadFactory,    // how threads are created
-    rejectionHandler  // what to do when full
-)
+corePoolSize // minimum threads kept alive
 ```
 
-**Execution flow:**
-- If threads < corePoolSize → create new thread.
-- If threads >= core → put in workQueue.
-- If queue full and threads < max → create new thread.
-- If queue full and threads = max → execute RejectionHandler.
-
-**Rejection policies:**
-- **AbortPolicy** (default) – throws `RejectedExecutionException`.
-- **CallerRunsPolicy** – caller thread executes the task (slows producer naturally).
-- **DiscardPolicy** – silently drops the task.
-- **DiscardOldestPolicy** – drops oldest queued task, retries submission.
-
-## Question 4: What is the difference between submit() and execute() in ExecutorService?
-
-- `execute(Runnable)` – fire-and-forget; no return value; throws unchecked exception directly.
-- `submit(Runnable/Callable)` – returns a Future; exceptions captured in `future.get()`; safer for error handling.
+with:
 
 ```java
-Future<?> f1 = executor.submit(runnable); // Future<Void>
-Future<Integer> f2 = executor.submit(callable);
-executor.execute(runnable);               // no Future returned
+corePoolSize // number of workers created before tasks are queued
 ```
 
-## Question 5: What are the limitations of Future?
+Core workers are normally created on demand as tasks arrive. They can be started beforehand using:
 
-- **Blocking get()** – `future.get()` blocks the calling thread, defeating async purpose.
-- **No chaining** – cannot chain multiple async operations easily.
-- **No combine** – cannot combine results of multiple Futures without blocking.
-- **No exception handling** – no callback on failure; exceptions wrapped in `ExecutionException`.
-- **Cannot complete manually** – cannot set result from outside the computation.
-
-## Question 6: Explain CompletableFuture and its key methods.
-
-`CompletableFuture<T>` (Java 8+) implements both `Future<T>` and `CompletionStage<T>`, providing a rich non-blocking API for async composition.
-
-**Creating**
 ```java
-CompletableFuture.runAsync(() -> { /* no result */ });
-CompletableFuture.supplyAsync(() -> fetchData(), executor);
+executor.prestartAllCoreThreads();
 ```
 
-**Transforming**
+They may also be allowed to time out:
+
 ```java
-cf.thenApply(result -> result.toUpperCase())   // sync transform
-  .thenApplyAsync(s -> callApi(s), executor)   // async transform
-  .thenAccept(s -> System.out.println(s))      // consume, no return
-  .thenRun(() -> System.out.println("done"));  // no input/output
+executor.allowCoreThreadTimeOut(true);
 ```
 
-**Combining**
+---
+
+### 3. `execute()` does not throw task exceptions directly to the submitting thread
+
+Replace:
+
+> `execute(Runnable)` throws unchecked exceptions directly.
+
+with:
+
+> `execute(Runnable)` returns no task handle. An uncaught task exception occurs in the worker thread and may reach that worker’s uncaught-exception handler.
+
 ```java
-cf1.thenCombine(cf2, (r1, r2) -> r1 + r2)  // combine two CFs
-CompletableFuture.allOf(cf1, cf2, cf3)     // wait for ALL
-CompletableFuture.anyOf(cf1, cf2, cf3)     // first to complete
+executor.execute(() -> {
+    throw new IllegalStateException("Failed");
+});
 ```
 
-**Error Handling**
-```java
-cf.exceptionally(ex -> defaultValue)
-cf.handle((result, ex) -> ex != null ? fallback : result)
-```
+The caller of `execute()` does not receive that task exception through the method call.
 
-## Question 7: What is the ForkJoinPool and how does work stealing work?
-
-`ForkJoinPool` (Java 7+) is optimized for recursive divide-and-conquer tasks. Each thread has its own deque; idle threads steal tasks from the tail of busy threads' deques.
+By comparison, `submit()` captures the failure:
 
 ```java
-class SumTask extends RecursiveTask<Long> {
-    protected Long compute() {
-        if (size <= THRESHOLD) return computeDirectly();
+Future<?> future = executor.submit(() -> {
+    throw new IllegalStateException("Failed");
+});
 
-        SumTask left = new SumTask(data, start, mid);
-        left.fork(); // async execution
-
-        SumTask right = new SumTask(data, mid, end);
-        return right.compute() + left.join(); // join result
-    }
+try {
+    future.get();
+} catch (ExecutionException exception) {
+    Throwable taskFailure = exception.getCause();
 }
 ```
 
-## Question 8: What does shutdown() vs shutdownNow() do?
+---
 
-- `shutdown()`: stop accepting new tasks, wait for running ones to finish.
-- `shutdownNow()`: attempt to interrupt running threads and return the list of pending tasks.
+### 4. `Future<?>` is not `Future<Void>`
 
-## Question 9: How should a thread pool be sized for CPU-bound vs I/O-bound work?
+This comment is inaccurate:
 
-Sizing thread pools depends on whether work is CPU-bound or I/O-bound:
-- **CPU-bound:** Size near the core count (e.g., `Runtime.getRuntime().availableProcessors() + 1`) to maximize CPU utilization without excessive context switching.
-- **I/O-bound:** Size much higher, since threads spend time waiting. Can be approximated using Little's Law or the formula: `Target CPU Utilization * Core Count * (1 + Wait Time / Compute Time)`.
+```java
+Future<?> future = executor.submit(runnable); // Future<Void>
+```
 
-## Question 10: Why can `CompletableFuture` chains cause thread starvation, and how do you avoid it?
+Use:
 
-Starvation can occur if all threads in the common pool are blocked waiting for other stages to complete, or if nested asynchronous stages run out of available threads to execute. To avoid this, use a dedicated `ExecutorService` for distinct or heavily blocking operations rather than relying entirely on the default `ForkJoinPool.commonPool()`.
+```java
+Future<?> future = executor.submit(runnable);
+```
 
+A successful `Runnable` submission returns `null` from `get()`, but its static type is usually `Future<?>`.
 
-## More Questions
-15. What is ReentrantLock? 
-16. synchronized vs ReentrantLock. 
-17. What is ReadWriteLock? 
-18. What is StampedLock? 
-19. What is Volatile keyword? 
-20. Volatile vs synchronized. 
-21. What is AtomicInteger? 
-22. Atomic classes vs synchronized. 
-23. What is CAS (Compare And Swap)? 
-24. What is Race Condition? 
-25. What is Deadlock? 
-26. How do you detect Deadlocks? 
-27. How do you prevent Deadlocks? 
-28. What is Livelock? 
-29. What is Starvation? 
-30. What is Thread Safety? 
+A result can be supplied explicitly:
+
+```java
+Future<String> future =
+        executor.submit(runnable, "completed");
+```
+
+---
+
+### 5. `Future.get()` does not always defeat asynchronous execution
+
+Replace:
+
+> Blocking `get()` defeats the async purpose.
+
+with:
+
+> `get()` blocks the calling thread. Excessive or poorly placed blocking can reduce the advantages of asynchronous execution and may cause starvation when workers wait for tasks queued to the same executor.
+
+Waiting at a controlled application boundary can be valid:
+
+```java
+Future<Report> future =
+        executor.submit(this::generateReport);
+
+Report report =
+        future.get(5, TimeUnit.SECONDS);
+```
+
+---
+
+### 6. `Future` does support exception retrieval, but not callback-based recovery
+
+Replace:
+
+> Future has no exception handling.
+
+with:
+
+> `Future` exposes task failures through `ExecutionException`, but it does not provide convenient callback, transformation, fallback, or composition methods.
+
+```java
+try {
+    return future.get();
+} catch (ExecutionException exception) {
+    throw new TaskFailedException(
+            exception.getCause()
+    );
+}
+```
+
+---
+
+### 7. `shutdown()` does not wait by itself
+
+Replace:
+
+> `shutdown()` stops accepting tasks and waits for running tasks to finish.
+
+with:
+
+> `shutdown()` stops accepting new tasks and allows previously submitted tasks to finish, but the method returns immediately.
+
+Use `awaitTermination()` to wait:
+
+```java
+executor.shutdown();
+
+if (!executor.awaitTermination(
+        30,
+        TimeUnit.SECONDS
+)) {
+    executor.shutdownNow();
+}
+```
+
+---
+
+### 8. `shutdownNow()` cannot forcibly terminate tasks
+
+Use this wording:
+
+> `shutdownNow()` attempts to interrupt running tasks and returns queued tasks that never started. Tasks that ignore interruption may continue running.
+
+```java
+List<Runnable> neverStarted =
+        executor.shutdownNow();
+```
+
+Java cancellation is cooperative.
+
+---
+
+### 9. Thread-pool sizing formulas are starting estimates
+
+Avoid presenting this as an exact formula:
+
+```text
+threads =
+target utilization × cores ×
+(1 + wait time / compute time)
+```
+
+Use:
+
+> For blocking workloads, this formula provides an initial estimate. The final limit must respect database connections, HTTP connection pools, downstream capacity, memory, rate limits, and measured queue latency.
+
+For CPU-bound tasks:
+
+```text
+Starting point ≈ usable CPU cores
+```
+
+Not always:
+
+```text
+cores + 1
+```
+
+---
+
+### 10. `newCachedThreadPool()` does not provide a safe upper bound
+
+Its practical risk should be stated clearly:
+
+```text
+No idle worker
+→ create another platform thread
+→ sustained blocking load
+→ potentially very large thread count
+```
+
+It should not be described as suitable for arbitrary “many short-lived tasks” unless submission volume and blocking behavior are externally controlled.
+
+---
+
+### 11. A fixed thread pool controls workers but not queued work
+
+```java
+ExecutorService executor =
+        Executors.newFixedThreadPool(10);
+```
+
+This limits active worker threads to ten, but its queue is unbounded.
+
+A production service commonly needs:
+
+```java
+ThreadPoolExecutor executor =
+        new ThreadPoolExecutor(
+                10,
+                20,
+                60,
+                TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(1_000),
+                new ThreadPoolExecutor.CallerRunsPolicy()
+        );
+```
+
+This controls both:
+
+- Active concurrency
+- Waiting backlog
+
+---
+
+### 12. Work stealing is an implementation strategy, not strict scheduling
+
+A good explanation is:
+
+> Fork/join workers maintain local task queues. A worker generally processes its own tasks while idle workers steal available tasks from other workers. This helps balance uneven divide-and-conquer workloads.
+
+Avoid relying on exact deque-end behavior as an application guarantee.
+
+---
+
+### 13. `CompletableFuture` is composable, but not automatically non-blocking
+
+This statement needs nuance:
+
+> `CompletableFuture` provides a rich non-blocking API.
+
+Better:
+
+> `CompletableFuture` supports completion-driven composition without requiring each stage to block, but the functions executed by its stages may still perform blocking work.
+
+For example:
+
+```java
+CompletableFuture<User> future =
+        CompletableFuture.supplyAsync(
+                () -> blockingHttpClient.fetchUser(id),
+                ioExecutor
+        );
+```
+
+The composition is asynchronous, but the HTTP operation itself is blocking.
+
+---
+
+### 14. Avoid blocking dependent tasks inside the same small executor
+
+Problematic:
+
+```java
+ExecutorService executor =
+        Executors.newFixedThreadPool(2);
+
+CompletableFuture<String> result =
+        CompletableFuture.supplyAsync(() -> {
+            CompletableFuture<String> nested =
+                    CompletableFuture.supplyAsync(
+                            this::loadData,
+                            executor
+                    );
+
+            return nested.join();
+        }, executor);
+```
+
+Prefer composition:
+
+```java
+CompletableFuture<String> result =
+        CompletableFuture
+                .supplyAsync(
+                        this::loadRequest,
+                        executor
+                )
+                .thenCompose(request ->
+                        loadDataAsync(
+                                request,
+                                executor
+                        )
+                );
+```
+
+---
+
+## Recommended Repository Placement
+
+```text
+04-concurrency/
+├── executors/
+│   ├── README.md
+│   ├── basic-questions.md
+│   ├── advanced-questions.md
+│   ├── thread-pool-executor.md
+│   ├── completable-future.md
+│   └── fork-join-pool.md
+├── locks/
+│   ├── synchronized-vs-lock.md
+│   ├── read-write-lock.md
+│   └── stamped-lock.md
+├── atomics/
+│   ├── volatile.md
+│   ├── atomic-classes.md
+│   └── compare-and-swap.md
+└── concurrency-problems/
+    ├── race-condition.md
+    ├── deadlock.md
+    ├── livelock.md
+    ├── starvation.md
+    └── thread-safety.md
+```
+
+The first ten questions belong in:
+
+```text
+04-concurrency/executors/basic-questions.md
+```

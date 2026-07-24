@@ -1,78 +1,1656 @@
-# Scenario-based Questions
+# Performance — Scenario-Based Questions
 
-**Scenario/Question:** Microservice Failure Under Load You have a Spring Boot microservice deployed on AWS. During peak traffic, response times spike and some requests fail. How would you identify whether the issue is in the application, database, or infrastructure? What metrics/logs would you check first? If the issue is due to thread starvation, how would you fix it?
+## Important Corrections
 
-**Scenario/Question:** High CPU Usage Your service suddenly spikes CPU. How do you investigate?
+- High latency with normal CPU does not mean the application is healthy. It may be waiting for database connections, downstream responses, row locks, executor capacity, disk I/O, or network operations.
+- Thread starvation is not always fixed by increasing the thread-pool size. More threads can increase queueing, memory use, context switching, and pressure on the database.
+- A five-minute cache is generally unsafe for an authoritative bank balance unless the response is explicitly presented as a stale snapshot.
+- Redis failure should not automatically trigger an unrestricted database fallback. That can transform a cache failure into a database outage.
+- Redis `allkeys-lru` retains recently accessed data, not necessarily the most frequently accessed data. `allkeys-lfu` is frequency-oriented. The appropriate eviction policy depends on the cache workload. ([Redis][1])
+- Redis Pub/Sub provides at-most-once delivery. A disconnected subscriber permanently misses messages, so it is not sufficient as the only invalidation mechanism for critical configuration or regulatory data. ([Redis][2])
+- Distributed locking is not the first or only cache-stampede solution. Request coalescing, stale-while-revalidate, proactive refresh, randomized TTLs, and bounded fallback are often simpler.
 
-**Scenario/Question:** How will you reduce GC pauses in a high-load system?
+---
 
-**Scenario/Question:** Your API response time increases under load - how will you troubleshoot?
+# 1. Microservice Failure Under Load
 
-**Scenario/Question:** A service becomes slow after deployment - how will you debug?
+## Scenario
 
-**Scenario/Question:** How will you reduce latency between services?
+A Spring Boot microservice runs on AWS. During peak traffic:
 
+- Response time increases significantly.
+- Some requests fail.
+- CPU or memory may appear high—or may remain normal.
+- The team needs to determine whether the bottleneck is the application, database, network, or AWS infrastructure.
 
+## Investigation Strategy
 
-# Advanced Interview Questions & Answers
+Use a top-down flow:
 
-**Scenario/Question:** 31. A customer's balance is cached for five minutes. During that time, another transaction changes the balance. How would you prevent stale balance display?
+```text
+Confirm user impact
+        ↓
+Inspect load-balancer metrics
+        ↓
+Inspect application RED metrics
+        ↓
+Inspect pools and queues
+        ↓
+Inspect database load and waits
+        ↓
+Inspect JVM and container resources
+        ↓
+Inspect traces and runtime profiles
+```
 
-**Answer:** Use a write-through or write-behind cache strategy. Whenever a transaction updates the database, the application must immediately update or invalidate the associated cache entry.
+---
 
-**Scenario/Question:** 32. Your Redis cluster becomes unavailable. Should the application fail, bypass the cache, or serve stale data? Explain your decision.
+## Step 1: Define the Exact Symptom
 
-**Answer:** Bypass the cache (Cache Aside pattern). The application should gracefully handle the Redis timeout, fetch data directly from the primary database, and continue functioning, though potentially with degraded performance.
+Do not begin with:
 
-**Scenario/Question:** 33. How would you invalidate cache entries after account updates without affecting performance?
+```text
+The service is slow.
+```
 
-**Answer:** Publish a cache invalidation event asynchronously via a message broker (Kafka/RabbitMQ) to prevent blocking the main transaction thread. All application instances listen and invalidate their local caches.
+Establish:
 
-**Scenario/Question:** 34. Multiple application nodes simultaneously rebuild the same expired cache entry, causing a database spike. How would you prevent this?
+```text
+Endpoint: POST /api/transfers
+Normal P99: 250 ms
+Incident P99: 5.2 seconds
+Error rate: 4.8%
+Environment: production
+Region: ap-southeast-1
+Application version: 4.7.2
+Start time: 10:31 UTC
+Traffic increase: 2.4×
+```
 
-**Answer:** This is a cache stampede. Implement distributed locking (e.g., Redis Redlock) when fetching from the DB, or use background proactive refresh before the TTL expires.
+Determine:
 
-**Scenario/Question:** 35. How would you decide whether beneficiary information should be cached?
+- Is the problem affecting P50, P95, P99, or all requests?
+- Is it limited to one endpoint?
+- Does it affect one instance, Availability Zone, tenant, or region?
+- Did it begin after a deployment or configuration change?
+- Are failures `5xx`, timeouts, connection errors, or rejected requests?
 
-**Answer:** Cache it. Beneficiary data has a high read-to-write ratio, rarely changes, and is read frequently during transfers, making it a perfect candidate for caching.
+---
 
-**Scenario/Question:** 36. How would you cache exchange rates that update every few minutes?
+## Step 2: Check AWS Load-Balancer Metrics
 
-**Answer:** Set a strict TTL aligned with the update frequency. Alternatively, use a scheduled background job to pull the latest rates and aggressively overwrite the cache, rather than waiting for user-driven cache misses.
+For an Application Load Balancer, inspect:
 
-**Scenario/Question:** 37. A cache contains sensitive customer information. What security controls would you implement?
+| Metric                       | What it tells you                                       |
+| ---------------------------- | ------------------------------------------------------- |
+| `RequestCount`               | Incoming request volume                                 |
+| `TargetResponseTime`         | Time until the target begins returning response headers |
+| `HTTPCode_Target_5XX_Count`  | Errors generated by the application targets             |
+| `HTTPCode_ELB_5XX_Count`     | Errors generated by the load balancer                   |
+| `TargetConnectionErrorCount` | Connections that could not be established with targets  |
+| `HealthyHostCount`           | Number of healthy targets                               |
+| `UnHealthyHostCount`         | Number of unhealthy targets                             |
+| `RejectedConnectionCount`    | Connections rejected at the load-balancer layer         |
 
-**Answer:** Encrypt sensitive fields (PII) before storing them in Redis. Use TLS for in-transit communication to Redis, and enforce authentication/authorization (Redis ACLs) for connecting clients.
+AWS distinguishes load-balancer-generated errors from target-generated errors. `TargetResponseTime` measures target-side processing until response headers begin, making it useful for separating slow application targets from front-door traffic issues. ([AWS Documentation][3])
 
-**Scenario/Question:** 38. Redis memory reaches 100%. Which eviction strategy would you choose and why?
+### Interpretation
 
-**Answer:** Use `allkeys-lru` (Least Recently Used). It ensures that the most frequently accessed data remains in memory, while dormant data is evicted, maximizing cache hit rates for active users.
+```text
+TargetResponseTime rises
++ target 5xx rises
+→ application or dependency problem
 
-**Scenario/Question:** 39. How would you measure whether caching actually improves API performance?
+ELB 5xx rises
++ target metrics look normal
+→ load-balancer, target connectivity, or capacity problem
 
-**Answer:** Monitor and compare the cache hit/miss ratio, track the 95th and 99th percentile latencies of the API, and observe database CPU/IOPS metrics before and after enabling the cache.
+HealthyHostCount decreases
+→ unhealthy deployment, probe issue, or crashing instances
 
-**Scenario/Question:** 40. How would you design cache keys to avoid collisions across multiple banking products?
+RequestCount rises sharply
++ latency rises gradually
+→ capacity or saturation issue
+```
 
-**Answer:** Use a hierarchical namespace convention, e.g., `appName:entityType:tenantId:entityId` (e.g., `retailbanking:account:US:12345`).
+---
 
-**Scenario/Question:** 41. A cached interest rate changes due to a regulatory update. How do you ensure every application node refreshes immediately?
+## Step 3: Check Application Metrics
 
-**Answer:** Use Redis Pub/Sub. When the update API is called, broadcast an invalidation message. All nodes subscribe to this channel and evict their local L1 caches simultaneously.
+Spring Boot Actuator and Micrometer can expose HTTP, JVM, thread, executor, connection-pool, and custom business metrics to Prometheus, CloudWatch, or another backend. ([Home][4])
 
-**Scenario/Question:** 42. How would you handle cache warm-up after a full cluster restart?
+### RED metrics
 
-**Answer:** Write a startup script or background job that proactively queries the most frequently accessed data (e.g., active user profiles, current exchange rates) and populates the cache before opening up to full traffic.
+Check:
 
-**Scenario/Question:** 43. Would you cache failed API responses? Under what conditions?
+```text
+Rate
+Errors
+Duration
+```
 
-**Answer:** Yes, cache negative responses (like 404 Not Found) for a short duration to prevent brute-force querying or repeated heavy DB lookups for non-existent resources (preventing Cache Penetration).
+Specifically:
 
-**Scenario/Question:** 44. How would you detect cache poisoning attempts?
+- Requests per second
+- Active requests
+- P50, P95, and P99 latency
+- `4xx` and `5xx` rates
+- Timeout rate
+- Retry count
+- Rejected request count
+- Request size and response size
 
-**Answer:** Validate all input data strictly before it is used to construct cache keys or stored in the cache. Monitor for unusual patterns in cache keys and implement strict access controls on the cache infrastructure.
+### Pool and queue metrics
 
-**Scenario/Question:** 45. A cache miss rate suddenly increases after deployment. How would you investigate?
+Inspect:
 
-**Answer:** Check if cache key generation logic was altered, verify if TTL settings were accidentally lowered, look for bugs in the cache population code, and ensure the Redis cluster is healthy and not aggressively evicting keys.
+- HTTP server busy threads
+- Executor active threads
+- Executor queue size
+- Rejected tasks
+- Database active connections
+- Database idle connections
+- Threads waiting for database connections
+- Connection-acquisition duration
+- HTTP client leased and pending connections
+- Kafka consumer lag
 
+### JVM metrics
+
+Inspect:
+
+- Process CPU
+- Heap used after GC
+- Allocation rate
+- GC pause duration
+- Thread count
+- Deadlocked threads
+- Direct-buffer usage
+- Metaspace
+- Process RSS
+
+---
+
+## Step 4: Check Database Metrics
+
+For Amazon RDS, inspect:
+
+- `CPUUtilization`
+- `DatabaseConnections`
+- `FreeableMemory`
+- `ReadLatency`
+- `WriteLatency`
+- `ReadIOPS`
+- `WriteIOPS`
+- `FreeStorageSpace`
+- `NetworkReceiveThroughput`
+- `NetworkTransmitThroughput`
+- Replica lag where applicable
+
+AWS publishes these database metrics through CloudWatch. ([AWS Documentation][5])
+
+Then inspect RDS Performance Insights:
+
+```text
+DB load
+├── CPU
+├── lock waits
+├── storage I/O waits
+├── log/commit waits
+└── other database-engine waits
+```
+
+Performance Insights breaks database load down by wait event and identifies the SQL statements contributing most to that load. This helps distinguish CPU saturation from locking, I/O, and query-plan problems. ([AWS Documentation][6])
+
+### Database bottleneck indicators
+
+```text
+DB connection acquisition time rises
+but SQL time remains low
+→ connection pool is saturated
+
+SQL span duration rises
++ DB load rises
+→ query, lock, I/O, or DB capacity issue
+
+One Top SQL query dominates DB load
+→ investigate execution plan and parameters
+
+DB metrics are normal
+but application DB pool is full
+→ connections may be held too long in application code
+```
+
+---
+
+## Step 5: Check Infrastructure
+
+Depending on whether the service runs on EC2, ECS, or EKS, inspect:
+
+- Container or instance CPU
+- CPU throttling or CPU credits
+- Memory use and OOM termination
+- Network throughput and packet errors
+- Disk latency and queue depth
+- Running, pending, and restarting tasks or Pods
+- Node capacity
+- Autoscaling activity
+- Availability Zone distribution
+- Target health
+
+EC2 provides basic CloudWatch monitoring at five-minute periods by default and one-minute data with detailed monitoring; additional process and memory telemetry generally requires an agent or container-level observability. ([AWS Documentation][7])
+
+---
+
+## Step 6: Use Distributed Traces
+
+Compare a normal and a slow request.
+
+### Normal request
+
+```text
+Total: 220 ms
+
+API Gateway             10 ms
+Transfer Service        40 ms
+Database                30 ms
+Fraud Service           60 ms
+Payment Service         70 ms
+```
+
+### Slow request
+
+```text
+Total: 5,200 ms
+
+API Gateway             10 ms
+Transfer Service     5,100 ms
+├── DB pool wait     4,400 ms
+├── SQL execution      300 ms
+└── application work   400 ms
+```
+
+The database query takes only 300 ms. The primary problem is waiting for a connection.
+
+Another example:
+
+```text
+Total: 5,000 ms
+
+Transfer Service        100 ms
+Fraud API             4,700 ms
+Other work              200 ms
+```
+
+This points to a slow downstream dependency rather than local application code.
+
+---
+
+# Application vs Database vs Infrastructure
+
+| Evidence                                  | Likely area                                  |
+| ----------------------------------------- | -------------------------------------------- |
+| High application CPU with hot Java stacks | Application code                             |
+| High allocation and frequent GC           | JVM/application                              |
+| Executor queue and rejection growth       | Application capacity                         |
+| DB pool waiting but normal DB load        | Long connection ownership or undersized pool |
+| High DB load and lock waits               | Database                                     |
+| Slow Top SQL and changed plan             | Database/query                               |
+| CPU throttling with normal host CPU       | Container configuration                      |
+| ALB connection errors                     | Networking or unhealthy targets              |
+| One Availability Zone affected            | Infrastructure/network                       |
+| High downstream span duration             | Remote dependency                            |
+| Normal CPU but large queue depths         | Waiting/saturation                           |
+
+---
+
+# Thread Starvation
+
+## What Is Thread Starvation?
+
+Thread starvation occurs when work cannot obtain a thread or executor slot within an acceptable time.
+
+```text
+Incoming requests
+        ↓
+All request threads busy
+        ↓
+New requests queue
+        ↓
+Queueing delay rises
+        ↓
+Timeouts and failures
+```
+
+Possible starvation points include:
+
+- Tomcat request threads
+- Application executors
+- `CompletableFuture` executor
+- Scheduled executor
+- Netty event-loop threads
+- HTTP client connection pool
+- Database connection pool
+- Kafka consumer processing executor
+
+A “thread starvation” symptom may actually originate in a connection pool: the threads exist, but they are all waiting for database or HTTP connections.
+
+---
+
+## Diagnose Thread Starvation
+
+Capture repeated thread dumps:
+
+```bash
+for i in 1 2 3 4 5; do
+  jcmd <PID> Thread.print -l > "threads-$i.txt"
+  sleep 5
+done
+```
+
+Look for repeated stacks such as:
+
+```text
+WAITING for database connection
+WAITING for HTTP connection
+BLOCKED on application monitor
+WAITING on CompletableFuture.join()
+RUNNABLE in infinite or CPU-heavy loop
+```
+
+A thread dump shows thread states and stack traces, while repeated dumps distinguish a temporary snapshot from threads that remain stuck in the same operation. ([Oracle Docs][8])
+
+Also compare:
+
+```text
+busy threads / maximum threads
+executor active tasks
+executor queue depth
+rejected tasks
+DB pending connection requests
+HTTP client pending connections
+```
+
+---
+
+## Fix Thread Starvation
+
+### 1. Fix the Blocking Dependency
+
+If all threads wait for a slow provider:
+
+```text
+Add more threads
+→ more simultaneous provider calls
+→ provider becomes even slower
+```
+
+Instead:
+
+- Set connection and response timeouts.
+- Add a bulkhead.
+- Add a circuit breaker.
+- Retry only safe transient failures.
+- Limit concurrent calls.
+- Degrade or fail quickly.
+
+### 2. Use Bounded Executors
+
+```java
+@Bean
+ExecutorService paymentExecutor() {
+    return new ThreadPoolExecutor(
+            20,
+            20,
+            0L,
+            TimeUnit.MILLISECONDS,
+            new ArrayBlockingQueue<>(200),
+            new ThreadPoolExecutor.AbortPolicy()
+    );
+}
+```
+
+A bounded queue makes overload visible through rejection rather than allowing latency and memory use to grow indefinitely.
+
+### 3. Separate Independent Workloads
+
+Use separate capacity for:
+
+```text
+Interactive API requests
+Batch processing
+Third-party calls
+Notifications
+Long-running reports
+```
+
+A slow reporting operation should not consume every thread needed by payment requests.
+
+### 4. Shorten Database Transactions
+
+Avoid:
+
+```text
+Open transaction
+→ query database
+→ call external API for 10 seconds
+→ update database
+→ commit
+```
+
+This retains database connections and locks while waiting on a remote system.
+
+Prefer:
+
+```text
+Short local transaction
+→ external operation
+→ short final transaction
+```
+
+The exact ordering must preserve business correctness.
+
+### 5. Right-Size Pools Together
+
+The relationship matters:
+
+```text
+100 request threads
+50 application workers
+20 database connections
+10 provider concurrency permits
+```
+
+Making the request pool 1,000 does not increase database or provider capacity.
+
+### 6. Consider Virtual Threads Carefully
+
+Virtual threads can reduce platform-thread starvation for blocking I/O, but they do not increase database connections or downstream quotas. Keep bulkheads, connection-pool limits, and admission control.
+
+---
+
+## Interview-Ready Answer
+
+> I start with ALB latency and error metrics, then inspect application request latency, pool saturation, JVM metrics, distributed traces, and RDS Performance Insights. Thread starvation is confirmed through busy-thread metrics, queue depth, connection-pool waiting, and repeated thread dumps. I fix the blocking dependency and bound concurrency rather than only increasing threads. I shorten transactions, use separate bounded executors, add timeouts and bulkheads, and size thread, HTTP, and database pools according to downstream capacity.
+
+---
+
+# 2. High CPU Usage
+
+## Investigation Flow
+
+```text
+Confirm CPU scope
+        ↓
+Correlate with traffic and deployment
+        ↓
+Separate application CPU from GC and throttling
+        ↓
+Identify hot native thread
+        ↓
+Map it to Java stack
+        ↓
+Capture JFR
+```
+
+---
+
+## Step 1: Determine the Scope
+
+Check whether CPU is high on:
+
+- One service instance
+- Every instance
+- One node
+- One Availability Zone
+- The Java process
+- A sidecar or monitoring agent
+- The database
+- The load balancer target group
+
+Interpretation:
+
+```text
+One instance high CPU
+→ hot key, instance-specific job, uneven traffic, stuck loop
+
+All instances high CPU
+→ traffic increase, deployment regression, shared workload
+
+Node CPU high but Java CPU normal
+→ another container or host process
+
+Java CPU appears capped
++ latency rises
+→ container CPU throttling may be occurring
+```
+
+---
+
+## Step 2: Check Recent Changes
+
+Compare:
+
+- Application version
+- JVM flags
+- Configuration
+- Logging level
+- Feature flags
+- Serialization library
+- New regex or validation logic
+- Database queries
+- Traffic and payload size
+- Batch or scheduled jobs
+
+A debug-logging change under high traffic can create substantial serialization and I/O overhead even when business logic is unchanged.
+
+---
+
+## Step 3: Identify Hot Threads
+
+On Linux:
+
+```bash
+top -H -p <PID>
+```
+
+or:
+
+```bash
+pidstat -p <PID> -t 1
+```
+
+Obtain the native thread ID and convert it to hexadecimal:
+
+```bash
+printf '%x\n' <TID>
+```
+
+Capture a Java thread dump:
+
+```bash
+jcmd <PID> Thread.print -l > threads.txt
+```
+
+Match the hexadecimal value with the thread’s `nid`.
+
+Capture several dumps. A method repeatedly present at the top of a `RUNNABLE` thread is a stronger lead than one isolated stack.
+
+---
+
+## Step 4: Record Java Flight Recorder Data
+
+```bash
+jcmd <PID> JFR.start \
+  name=cpu-investigation \
+  settings=profile \
+  duration=5m \
+  filename=/tmp/cpu-investigation.jfr
+```
+
+JFR is designed to collect runtime evidence including CPU samples, allocations, GC activity, locks, exceptions, and I/O for performance diagnosis. ([Oracle Docs][9])
+
+Analyze with JDK Mission Control:
+
+- Method profiling
+- Hot methods
+- Allocation hotspots
+- Lock contention
+- Exceptions
+- Garbage collection
+- Socket and file I/O
+
+---
+
+## Common High-CPU Causes
+
+- Infinite or unexpectedly large loop
+- Expensive regular expression
+- JSON serialization
+- Encryption or compression
+- Excessive logging
+- Retry loop without sufficient delay
+- Busy-wait or spin loop
+- Lock contention with repeated CAS
+- Large collection sorting
+- Excessive object allocation and GC
+- Cache-miss storm
+- Polling too frequently
+- Unbounded parallel stream
+- Hot Kafka partition
+- Traffic imbalance
+
+---
+
+## Fixes
+
+- Optimize the verified hot path.
+- Reduce allocation and copying.
+- Cache only safe expensive computations.
+- Add batching where appropriate.
+- Replace busy polling with blocking/event-driven mechanisms.
+- Bound concurrency.
+- Fix retry loops.
+- Reduce unnecessary logging.
+- Scale horizontally only when work is parallelizable.
+- Raise CPU allocation only after confirming genuine CPU capacity is the bottleneck.
+
+---
+
+# 3. How Will You Reduce GC Pauses?
+
+## First Diagnose the GC Problem
+
+Do not tune GC because application latency is high. Confirm:
+
+- GC pauses overlap with latency spikes.
+- Post-GC heap remains high.
+- Allocation rate is excessive.
+- Full GC is occurring.
+- Concurrent collection cannot keep up.
+- CPU throttling is slowing collector work.
+- The heap is too small for the live set and traffic pattern.
+
+Enable GC logging:
+
+```text
+-Xlog:gc*,gc+phases=debug,safepoint:file=/var/log/app/gc.log:time,uptime,level,tags
+```
+
+GC logs can show repeated full collections, old-generation pressure, and collections that reclaim little memory—possible evidence of a leak or insufficient memory. ([Oracle Docs][10])
+
+---
+
+## Reduction Strategy
+
+## 1. Reduce Allocation Rate
+
+Look for:
+
+- Large temporary arrays
+- Repeated JSON transformations
+- Reading complete files or responses into memory
+- String concatenation in loops
+- Unnecessary DTO copies
+- Excessive logging
+- Unbounded batching
+- Large per-request object graphs
+
+Use JFR allocation profiling to find the allocation sites.
+
+---
+
+## 2. Correct the Heap Size
+
+Too small:
+
+```text
+Frequent collections
+→ promotion pressure
+→ full GC
+```
+
+Too large:
+
+```text
+More memory retained
+→ potentially longer scanning
+→ larger container footprint
+```
+
+Keep memory for:
+
+- Heap
+- Metaspace
+- Direct buffers
+- Thread stacks
+- Code cache
+- JVM and GC structures
+- Native libraries
+
+Do not set `-Xmx` equal to the container memory limit.
+
+---
+
+## 3. Choose the Collector from Measurements
+
+### G1
+
+Use as a strong balanced baseline for throughput and pause-time goals.
+
+### ZGC
+
+Evaluate where very low tail latency is important and adequate CPU and heap headroom are available.
+
+### Shenandoah
+
+Evaluate when supported by the selected JDK distribution and low-pause collection is required.
+
+The collector should be selected using the same traffic, heap, warm-up, and latency tests—not by comparing unrelated environments.
+
+---
+
+## 4. Avoid Premature Flag Tuning
+
+Do not immediately tune:
+
+```text
+Region size
+Initiating heap occupancy
+Young-generation percentages
+Concurrent threads
+Remembered-set behavior
+```
+
+First identify the actual problem:
+
+- Memory leak
+- Allocation burst
+- Humongous object
+- Container memory pressure
+- CPU throttling
+- Undersized heap
+- Incorrect collector for the SLO
+
+---
+
+## 5. Control Large Objects
+
+Large payloads and arrays can create collection pressure.
+
+Use:
+
+- Streaming
+- Bounded batch sizes
+- Payload limits
+- Incremental parsing
+- Object-storage references instead of large inline messages
+
+---
+
+## 6. Remove Leaks
+
+A collector cannot reclaim reachable objects.
+
+Investigate:
+
+- Unbounded caches
+- Queues
+- `ThreadLocal`
+- Listeners
+- Incomplete futures
+- Static maps
+- Classloader leaks
+- Direct buffers
+
+---
+
+## Interview-Ready Answer
+
+> I first correlate latency spikes with GC pauses using GC logs and JFR. I inspect allocation rate, live-set size, full collections, humongous objects, CPU throttling, and heap headroom. I reduce application allocations and leaks before changing collector flags, then right-size heap and native-memory margins. G1 is my balanced baseline, while ZGC or a supported Shenandoah build is benchmarked when the tail-latency requirement is stricter.
+
+---
+
+# 4. API Response Time Increases Under Load
+
+## Find the Saturation Point
+
+Use a stepped load test:
+
+```text
+100 RPS
+→ 250 RPS
+→ 500 RPS
+→ 1,000 RPS
+→ 2,000 RPS
+```
+
+At each level, record:
+
+- Throughput
+- P95/P99 latency
+- Error rate
+- Active concurrency
+- Thread use
+- Queue depth
+- DB pool waiting
+- DB load
+- CPU throttling
+- Downstream latency
+
+The first resource whose queue or waiting time rises sharply is often the limiting resource.
+
+---
+
+## Common Bottlenecks
+
+### Request threads
+
+```text
+Busy threads ≈ maximum
+Queue grows
+```
+
+### Database connections
+
+```text
+Active connections = pool maximum
+Pending borrowers rise
+```
+
+### HTTP client connections
+
+```text
+All connections leased
+Requests wait for a connection
+```
+
+### Database locks
+
+```text
+DB CPU normal
+but active sessions wait on locks
+```
+
+### Downstream service
+
+```text
+Client span latency rises
+Circuit-breaker slow-call rate rises
+```
+
+### CPU
+
+```text
+CPU saturated or throttled
+Runnable queue grows
+```
+
+### Cache
+
+```text
+Hit ratio falls
+DB traffic rises
+```
+
+---
+
+## Troubleshooting Sequence
+
+```text
+1. Check traffic and error type.
+2. Compare P50, P95, and P99.
+3. Inspect distributed traces.
+4. Inspect queue and pool waiting.
+5. Inspect CPU, GC, and throttling.
+6. Inspect database waits and Top SQL.
+7. Inspect downstream calls.
+8. Identify the first saturated resource.
+9. Fix or protect that resource.
+10. Repeat the load test.
+```
+
+Do not scale only the service tier before checking whether the database and dependencies can accept additional concurrency.
+
+---
+
+# 5. Service Becomes Slow After Deployment
+
+Treat the previous version as the control group.
+
+## Compare Old vs New
+
+Check:
+
+```text
+Application version
+Configuration version
+JVM version and flags
+Container resources
+Dependency versions
+Database schema
+Feature flags
+Cache namespace
+Traffic distribution
+```
+
+## Common Deployment Regressions
+
+- New N+1 database access
+- Missing database index
+- Changed query plan
+- Increased logging
+- Larger payload
+- Disabled cache
+- Changed cache-key prefix
+- Reduced connection pool
+- Reduced CPU request or limit
+- Increased retries
+- Longer timeout
+- New synchronous downstream call
+- Expensive validation or encryption
+- Changed GC flags
+- Slow sidecar
+- Incorrect readiness behavior
+
+## Investigation
+
+1. Compare traces from old and new versions.
+2. Compare request latency by application version.
+3. Compare SQL count per request.
+4. Compare allocation rate and CPU profile.
+5. Compare configuration and JVM flags.
+6. Check database migrations and indexes.
+7. Check cache hit ratio.
+8. Check retry and downstream-call count.
+9. Roll back when user impact is material and rollback is safe.
+10. Preserve evidence for root-cause analysis.
+
+A canary deployment makes this comparison easier because both versions handle similar production traffic simultaneously.
+
+---
+
+# 6. How Will You Reduce Latency Between Services?
+
+## 1. Reduce Chatty Communication
+
+Avoid:
+
+```text
+Get customer
+→ get address
+→ get preferences
+→ get status
+→ get account type
+```
+
+Consider:
+
+- Aggregated endpoint
+- Batch API
+- Read model
+- Domain-aligned service boundaries
+- Event-driven local projection
+
+Many small network calls can be more expensive and fragile than one appropriately bounded call.
+
+---
+
+## 2. Parallelize Independent Calls
+
+```java
+CompletableFuture<Inventory> inventory =
+        inventoryClient.fetchAsync(orderId);
+
+CompletableFuture<Risk> risk =
+        riskClient.evaluateAsync(orderId);
+
+return inventory.thenCombine(risk, this::combine);
+```
+
+Only parallelize independent work and keep the total concurrency bounded.
+
+---
+
+## 3. Use Asynchronous Processing
+
+For work not needed in the immediate response:
+
+```text
+Create order
+→ commit durable state
+→ publish event
+→ return response
+
+Notification and analytics
+→ process asynchronously
+```
+
+Do not make the user wait for an email, report, or analytics update unless the business contract requires it.
+
+---
+
+## 4. Reuse Connections
+
+Use appropriately configured:
+
+- HTTP keep-alive
+- Connection pooling
+- DNS caching
+- TLS session reuse where supported
+
+Monitor pool acquisition time, not only request duration.
+
+---
+
+## 5. Reduce Payload Size
+
+- Return only required fields.
+- Avoid repeatedly transferring complete domain objects.
+- Use pagination.
+- Batch related requests.
+- Avoid Base64 for large binary payloads when object storage is more suitable.
+- Use compression only when payload size justifies its CPU cost.
+
+---
+
+## 6. Place Services Appropriately
+
+Keep frequently communicating services and data in network locations consistent with latency and resilience requirements. Cross-region calls should be deliberate because they introduce additional latency and failure modes.
+
+---
+
+## 7. Cache Carefully
+
+Cache:
+
+- Stable reference data
+- Expensive read models
+- Product descriptions
+- Public configuration
+- Recommendations
+
+Avoid treating caches as the authoritative source for:
+
+- Payment state
+- Ledger balance
+- Inventory reservation
+- Security authorization
+
+---
+
+## 8. Use Explicit Deadlines
+
+Every downstream call should have a timeout smaller than the caller’s remaining deadline.
+
+```text
+Client deadline: 3 seconds
+Service A local work: 300 ms
+Service B budget: 1 second
+Safety and response budget: remaining time
+```
+
+---
+
+# Advanced Caching Interview Questions
+
+# Q31: A Customer Balance Is Cached for Five Minutes
+
+## Problem
+
+A balance can change immediately after it is cached:
+
+```text
+10:00 Balance cached as 10,000
+10:01 Customer transfers 4,000
+10:02 API returns cached balance of 10,000
+```
+
+For an authoritative available balance, a five-minute cache is generally unacceptable.
+
+## Better Design
+
+### Option 1: Do Not Cache the Authoritative Balance
+
+Read the authoritative account or ledger state for transactions and high-risk balance displays.
+
+### Option 2: Cache an Explicit Snapshot
+
+Return:
+
+```json
+{
+  "balance": 10000.0,
+  "currency": "USD",
+  "version": 481,
+  "asOf": "2026-07-24T10:00:00Z"
+}
+```
+
+The client knows it is a snapshot.
+
+### Option 3: Update or Invalidate After Commit
+
+```text
+Database transaction commits
+        ↓
+Outbox event recorded
+        ↓
+BalanceChanged event published
+        ↓
+L1 and L2 balance entries invalidated
+```
+
+Use a version number so an old event cannot overwrite a newer cached value.
+
+## Important Correction
+
+Write-behind is usually inappropriate for authoritative balances because it can acknowledge a value before the durable financial source has been updated.
+
+---
+
+# Q32: Redis Cluster Is Unavailable
+
+The fallback depends on Redis’s purpose.
+
+| Redis role                    | Recommended behavior                    |
+| ----------------------------- | --------------------------------------- |
+| Optional reference-data cache | Bounded DB fallback                     |
+| Recommendation cache          | Serve stale or generic result           |
+| Session store                 | Reauthentication or fail conservatively |
+| Rate limiter                  | Risk-specific fail-open/fail-closed     |
+| Distributed lock              | Stop if correctness requires the lock   |
+| Payment idempotency cache     | Fall back to durable DB record          |
+| Authorization cache           | Conservative expiry or fail closed      |
+
+## Cache-Aside Fallback
+
+```text
+Redis timeout
+→ circuit breaker opens
+→ limited requests use DB
+→ local short-lived cache/request coalescing
+→ shed load if DB approaches saturation
+```
+
+Do not let every instance send every cache miss directly to the database.
+
+## Interview Answer
+
+> Redis failure handling is role-specific. For an optional cache, I use a bounded cache-aside fallback with request coalescing and database concurrency protection. I may serve last-known-good data when its age is acceptable. For security, locking, or financial correctness, I fail conservatively or use the durable source of truth.
+
+---
+
+# Q33: Invalidate Cache After Account Updates
+
+Use a durable event flow:
+
+```text
+Update account
++
+write outbox event
+        ↓
+commit local transaction
+        ↓
+publish AccountUpdated
+        ↓
+all instances evict local L1 entry
+        ↓
+shared Redis value evicted or updated
+```
+
+Include:
+
+```text
+accountId
+tenantId
+eventId
+accountVersion
+eventTime
+```
+
+Consumers should ignore an event older than the version already processed.
+
+Use TTL as a final safety mechanism in case an invalidation is missed.
+
+---
+
+# Q34: Prevent a Cache Stampede
+
+## Problem
+
+```text
+Popular key expires
+→ 5,000 requests miss simultaneously
+→ 5,000 database calls
+```
+
+## Solutions
+
+### Single-flight or request coalescing
+
+One request refreshes the key; others wait briefly or receive stale data.
+
+### Stale-while-revalidate
+
+```text
+Entry expired recently
+→ serve stale value
+→ one background refresh runs
+```
+
+### Proactive refresh
+
+Refresh high-demand entries before expiry.
+
+### Randomized TTL
+
+Avoid thousands of keys expiring at the same second.
+
+### Per-key lock
+
+Use a short, uniquely owned lock only when necessary.
+
+For write-protection, a lease may require fencing or another database-side correctness mechanism so a stale lock holder cannot overwrite newer work.
+
+## Important Correction
+
+Do not select Redlock automatically. First determine whether the requirement is merely deduplicating cache loads or enforcing correctness across distributed writers.
+
+---
+
+# Q35: Should Beneficiary Information Be Cached?
+
+Do not answer “yes” based only on read/write ratio.
+
+Evaluate:
+
+- How frequently it is read
+- How frequently it changes
+- Whether stale data could route money incorrectly
+- Whether authorization depends on current ownership
+- Whether it contains PII
+- Whether it is tenant- or user-specific
+- Required revocation speed
+- Acceptable stale period
+
+A safer cached representation may contain:
+
+```text
+beneficiaryId
+masked account suffix
+display name
+bank name
+status version
+```
+
+The transfer operation should still perform authoritative validation before executing a payment.
+
+---
+
+# Q36: Cache Exchange Rates
+
+Model each rate with:
+
+```text
+currency pair
+rate
+source
+effective time
+expiry time
+version
+```
+
+Example:
+
+```json
+{
+  "pair": "USD/LKR",
+  "rate": 305.42,
+  "source": "provider-a",
+  "effectiveAt": "2026-07-24T08:00:00Z",
+  "expiresAt": "2026-07-24T08:05:00Z",
+  "version": 9281
+}
+```
+
+## Recommended Flow
+
+```text
+Scheduled fetch
+→ validate provider response
+→ persist/version rate
+→ atomically replace cache value
+→ publish RateUpdated
+```
+
+Maintain a last-known-good value, but define a maximum acceptable age. If the rate is too old, reject or hold financial operations rather than silently using it.
+
+---
+
+# Q37: Sensitive Customer Information in Redis
+
+Apply:
+
+- Data minimization
+- TLS
+- Redis authentication and ACLs
+- Private networking
+- Separate credentials per service
+- Encryption of highly sensitive fields where justified
+- External key management
+- Short TTL
+- Restricted backups
+- Audit logging
+- No PII in cache keys
+- Secure deletion and retention rules
+
+Cache keys should use opaque IDs or keyed hashes rather than email addresses, account numbers, or national identifiers.
+
+---
+
+# Q38: Redis Memory Reaches 100%
+
+No eviction policy is universally correct.
+
+## Pure Cache
+
+Possible choices:
+
+### `allkeys-lru`
+
+Evicts keys that have not been used recently.
+
+### `allkeys-lfu`
+
+Evicts keys used less frequently.
+
+### `allkeys-random`
+
+Simple but usually less effective for skewed access patterns.
+
+## Mixed Cache and Durable-Like Data
+
+Policies that evict only keys with TTL may protect non-expiring entries, but mixing cache data and important non-cache data in the same Redis database is itself risky.
+
+## Authoritative or Queue-Like Data
+
+Consider:
+
+```text
+noeviction
+```
+
+and treat memory exhaustion as an operational incident rather than silently losing keys.
+
+Redis provides multiple `maxmemory-policy` options because the correct policy depends on access distribution, TTL use, and whether key loss is acceptable. ([Redis][1])
+
+## Important Correction
+
+`allkeys-lru` keeps recently used data—not specifically the most frequently used data. For frequency-based behavior, evaluate LFU.
+
+---
+
+# Q39: Measure Whether Caching Helps
+
+Compare before and after using the same workload.
+
+Track:
+
+## Cache metrics
+
+- Hit ratio
+- Miss ratio
+- Eviction rate
+- Entry count
+- Redis latency
+- Redis CPU and memory
+- Cache-load failures
+- Stampede-prevention activity
+
+## Application metrics
+
+- P50/P95/P99 latency
+- Throughput
+- Error rate
+- CPU
+- Allocation rate
+
+## Database metrics
+
+- Query rate
+- CPU
+- IOPS
+- Connection use
+- Lock waits
+- Top SQL
+
+Also measure correctness:
+
+- Stale-result rate
+- Invalidation delay
+- Cache/DB version mismatch
+- Data served beyond maximum age
+
+A high hit ratio is not valuable when stale data causes incorrect business outcomes.
+
+---
+
+# Q40: Cache-Key Design
+
+Use a structured namespace:
+
+```text
+environment:application:cacheVersion:tenant:entity:id
+```
+
+Example:
+
+```text
+prod:retail-banking:v3:tenant-47:beneficiary:b-9281
+```
+
+Guidelines:
+
+- Include environment.
+- Include application or domain.
+- Include schema/cache version.
+- Include tenant where required.
+- Use canonical formatting.
+- Avoid raw PII.
+- Keep keys reasonably bounded.
+- Include all request dimensions that affect the result.
+- Use Redis Cluster hash tags only when related keys must share a slot.
+
+Example:
+
+```text
+prod:payments:v2:{payment-100}:status
+prod:payments:v2:{payment-100}:attempts
+```
+
+---
+
+# Q41: Regulatory Interest Rate Must Refresh Immediately
+
+Redis Pub/Sub alone is not reliable enough because subscribers that are offline miss messages permanently. ([Redis][2])
+
+Use:
+
+```text
+Rate change committed
++
+outbox record
+        ↓
+durable Kafka/Redis Stream event
+        ↓
+every instance receives versioned event
+        ↓
+local L1 cache invalidated
+        ↓
+new value loaded from authoritative source
+```
+
+Include a monotonic configuration or rate version. Each instance should expose the version it currently uses so operations can detect partial rollout.
+
+For critical calculations, verify that the loaded rate version is valid for the transaction’s effective date.
+
+---
+
+# Q42: Cache Warm-Up After Cluster Restart
+
+Avoid letting every instance warm the same data.
+
+## Better Approach
+
+```text
+Shared L2 cache warm-up owner
+        ↓
+load top N keys at a controlled rate
+        ↓
+other instances use L2
+        ↓
+remaining keys load on demand
+```
+
+Use:
+
+- Most-frequently-used key list
+- Rate-limited warm-up
+- Batching
+- Jitter between instances
+- Shared ownership or leader election
+- DB load monitoring
+- Progressive traffic increase
+
+Do not delay readiness for the entire cache unless the service genuinely cannot operate safely without it.
+
+---
+
+# Q43: Cache Failed API Responses
+
+Cache only deterministic, safe negative results.
+
+Good candidates:
+
+```text
+Resource does not exist
+Unsupported immutable identifier
+Known invalid reference data
+```
+
+Use a short TTL.
+
+Avoid globally caching:
+
+- `401 Unauthorized`
+- `403 Forbidden`
+- `429 Too Many Requests`
+- `500` errors
+- Timeouts
+- Connection failures
+- Temporary provider failures
+
+A `404` may also be user- or tenant-dependent. Include the authorization boundary in the key or avoid caching it when doing so could disclose resource existence.
+
+---
+
+# Q44: Detect and Prevent Cache Poisoning
+
+Cache poisoning occurs when incorrect or attacker-influenced data is stored under a key that later serves legitimate requests.
+
+## Controls
+
+- Validate and normalize all input.
+- Construct cache keys on the server.
+- Prevent delimiter and namespace injection.
+- Populate cache only from trusted sources.
+- Use explicit serialization schemas.
+- Separate tenants and environments.
+- Apply Redis ACLs.
+- Limit who can write cache entries.
+- Validate object version and origin.
+- Use TTLs.
+- Monitor abnormal key growth and unexpected prefixes.
+- Compare high-risk values against the source of truth.
+- Avoid caching unsanitized HTML or executable content.
+
+Never allow:
+
+```text
+user-controlled key
++
+user-controlled value
++
+shared cache namespace
+```
+
+without strict isolation and validation.
+
+---
+
+# Q45: Cache Miss Rate Increases After Deployment
+
+Check:
+
+## Key generation
+
+- Prefix changed
+- Cache version changed
+- Tenant dimension added or removed
+- Different case or whitespace normalization
+- New serialization of IDs
+- Redis Cluster hash-tag change
+
+## TTL and eviction
+
+- TTL reduced
+- TTL accidentally set to zero or a very small value
+- `maxmemory` reduced
+- Eviction policy changed
+- Memory pressure increased
+
+## Population logic
+
+- `@Cacheable` proxy bypassed through self-invocation
+- Method no longer called through Spring proxy
+- Cache condition changed
+- Exceptions prevent population
+- Null values excluded
+- Cache manager changed
+
+## Infrastructure
+
+- Redis restarted
+- Failover created a cold node
+- Client points to a different cluster or database
+- Network timeout increased
+- Authentication failures
+- Cluster slot or routing errors
+
+## Traffic
+
+- New tenant or product traffic
+- Different access distribution
+- Canary version uses another namespace
+- Previously cold keys are now requested
+
+Correlate the miss-rate increase with deployment version, key count, evictions, Redis memory, DB query rate, and application logs.
+
+---
+
+# Quick Interview Cheat Sheet
+
+| Scenario              | First investigation                            |
+| --------------------- | ---------------------------------------------- |
+| Latency under load    | Traces, pools, queues, DB waits                |
+| High CPU              | Hot thread plus JFR                            |
+| GC pauses             | GC logs, allocation rate, live set             |
+| Thread starvation     | Repeated dumps and queue metrics               |
+| Slow after deployment | Compare old/new version telemetry              |
+| Redis down            | Role-specific bounded fallback                 |
+| Stale balance         | Authoritative read or versioned invalidation   |
+| Cache stampede        | Single-flight and stale-while-revalidate       |
+| Redis memory full     | Choose policy based on data semantics          |
+| Critical invalidation | Durable event plus version, not Pub/Sub alone  |
+| High miss rate        | Keys, TTL, eviction, routing, population logic |
+| Service latency       | Reduce chattiness, payloads, waiting, and hops |
+
+# Senior Interview Summary
+
+> During a peak-traffic incident, I begin with user impact and the load-balancer view, then inspect application RED metrics, pool and queue saturation, distributed traces, JVM behavior, and RDS Performance Insights. This allows me to separate application CPU, thread starvation, database waits, infrastructure throttling, and downstream latency.
+>
+> Thread starvation is fixed by bounding and isolating work, shortening blocking operations and transactions, and aligning thread, connection, and downstream capacity. Increasing thread count alone often increases pressure on the actual bottleneck.
+>
+> Cache design begins with correctness. Authoritative balances, payments, inventory, and security decisions cannot depend on stale or silently evicted data. I use cache-aside for suitable reads, versioned invalidation through durable events, bounded Redis-failure fallbacks, request coalescing for stampedes, and explicit freshness information. Every cache has a defined source of truth, stale-data tolerance, eviction policy, failure mode, and monitoring strategy.
+
+[1]: https://redis.io/docs/latest/develop/reference/eviction/?utm_source=chatgpt.com "Key eviction | Docs"
+[2]: https://redis.io/docs/latest/develop/pubsub/?utm_source=chatgpt.com "Redis Pub/sub | Docs"
+[3]: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-cloudwatch-metrics.html?utm_source=chatgpt.com "CloudWatch metrics for your Application Load Balancer"
+[4]: https://docs.spring.io/spring-boot/reference/actuator/metrics.html?utm_source=chatgpt.com "Metrics :: Spring Boot"
+[5]: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-metrics.html?utm_source=chatgpt.com "Amazon CloudWatch metrics for Amazon RDS"
+[6]: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_PerfInsights.UsingDashboard.AnalyzeDBLoad.html?utm_source=chatgpt.com "Analyzing DB load by wait events"
+[7]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/viewing_metrics_with_cloudwatch.html?utm_source=chatgpt.com "CloudWatch metrics that are available for your instances"
+[8]: https://docs.oracle.com/en/java/javase/22/docs/specs/man/jcmd.html?utm_source=chatgpt.com "The jcmd Command"
+[9]: https://docs.oracle.com/en/java/javase/25/troubleshoot/troubleshoot-performance-issues-using-jfr.html?utm_source=chatgpt.com "4 Troubleshoot Performance Issues Using Flight Recorder"
+[10]: https://docs.oracle.com/en/java/javase/17/troubleshoot/troubleshooting-memory-leaks.html?utm_source=chatgpt.com "3 Troubleshoot Memory Leaks - Java"

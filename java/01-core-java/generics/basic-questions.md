@@ -1,1343 +1,2147 @@
-# Basic Questions
+I treated the uploaded markdown as the next interview-preparation file to clean and reorganize. It currently combines Core Java, OOP, Collections, Streams, Concurrency, JVM, JDBC, REST security, design patterns, and web fundamentals in one file, with several duplicates and inaccurate answers.
 
-## Question 1: What is Java? Explain its features.
+# Recommended Repository Split
 
-Java is a high-level, object-oriented programming language developed by Sun Microsystems 
-(now Oracle) in 1995. 
-Key features: 
-• Platform Independent: Write Once, Run Anywhere (WORA). 
-• Object-Oriented: Follows OOP principles like encapsulation and inheritance. 
-• Robust: Strong memory management and exception handling. 
-• Multithreaded: Supports concurrent execution of threads. 
-• Secure: No explicit pointers and runs in a virtual machine.
+```text
+java/
+├── 01-core-java/
+│   ├── basic-questions.md
+│   ├── oop/
+│   │   └── basic-questions.md
+│   ├── generics/
+│   │   └── basic-questions.md
+│   └── serialization/
+│       └── basic-questions.md
+├── 02-collections/
+│   ├── basic-questions.md
+│   ├── maps/
+│   │   └── basic-questions.md
+│   ├── sets/
+│   │   └── basic-questions.md
+│   └── sorting/
+│       └── basic-questions.md
+├── 03-streams/
+│   └── basic-questions.md
+├── 04-concurrency/
+│   └── basic-questions.md
+├── 05-jvm/
+│   └── basic-questions.md
+├── 06-database/
+│   └── jdbc-basic-questions.md
+├── 07-web/
+│   └── basic-questions.md
+├── 08-api-security/
+│   └── basic-questions.md
+└── 09-design-patterns/
+    └── basic-questions.md
+```
 
-## Question 2: Explain the concept of platform independence in Java.
+```mermaid
+flowchart TD
+    A[Uploaded Mixed Question File] --> B[Core Java]
+    A --> C[OOP]
+    A --> D[Collections]
+    A --> E[Streams]
+    A --> F[Concurrency]
+    A --> G[JVM]
+    A --> H[JDBC]
+    A --> I[Web and API Security]
+    A --> J[Design Patterns]
+```
 
-Java programs are compiled into bytecode, which is platform-independent. Bytecode is 
-executed by the JVM, which is platform-specific, ensuring the same Java program runs on 
-any OS with a compatible JVM.
+---
 
-## Question 3: What is the significance of the main method in Java?
+# `01-core-java/basic-questions.md`
 
-The main method is the entry point of a Java application. Its signature is: 
-java 
+## Question 1: What is Java?
 
-public static void main(String[] args) 
-• public: Accessible globally. 
-• static: Allows the JVM to call it without object instantiation. 
-• void: Returns no value. 
-• String[] args: Accepts command-line arguments.
+Java is a high-level, class-based, strongly typed, general-purpose programming language.
 
-## Question 4: Describe the access modifiers in Java.
+Java source code is compiled into bytecode, which runs on a Java Virtual Machine. This allows the same compiled application to run on different operating systems that provide a compatible JVM.
 
-• Public: Accessible everywhere. 
-• Protected: Accessible within the same package and subclasses. 
-• Default: Accessible within the same package only. 
-• Private: Accessible within the same class only.
+```java
+public class HelloWorld {
 
-## Question 5: Explain the concept of packages in Java.
+    public static void main(String[] args) {
+        System.out.println("Hello, Java!");
+    }
+}
+```
 
-Packages are namespaces used to group related classes and interfaces. They help avoid name 
-conflicts and improve organization.
+---
 
-## Question 6: Explain the concept of Java annotations.
+## Question 2: What are the main features of Java?
 
-Annotations provide metadata about code, such as @Override, @Deprecated, and 
-custom annotations.
+Important Java features include:
 
-## Question 7: Explain serialization and deserialization in Java.
+- Platform independence
+- Object-oriented programming
+- Automatic memory management
+- Strong type checking
+- Exception handling
+- Multithreading support
+- Rich standard library
+- Runtime optimization through JIT compilation
+- Security features such as bytecode verification
+- Support for distributed and network applications
 
-• Serialization: Converts an object to a byte stream. 
-• Deserialization: Converts a byte stream back to an object.
+Java is not completely object-oriented because it has primitive types such as `int`, `char`, and `boolean`.
 
-## Question 8: Explain the concept of immutability in Java.
+---
 
-Immutable objects cannot be modified after creation, e.g., String.
+## Question 3: Why is Java platform-independent?
 
-## Question 9: What is the enum type in Java? How is it used?
+Java source code is compiled into platform-independent bytecode.
 
-Used to define a set of named constants. 
-Example: 
-java 
+```text
+Java source code
+      ↓ javac
+Java bytecode
+      ↓ JVM
+Native machine instructions
+```
 
-enum Day { MONDAY, TUESDAY }
+Each operating system has its own JVM implementation, but every compatible JVM understands the same bytecode.
 
-## Question 10: Explain the concept of reflection in Java.
+This is commonly described as:
 
-Allows inspection and modification of classes, methods, and fields at runtime.
+> Write Once, Run Anywhere.
 
-## Question 11: What are modules in Java? Discuss their significance.
+The JVM is platform-specific, while Java bytecode is platform-independent.
 
-Introduced in Java 9, modules allow better packaging, encapsulation, and dependency 
-management.
+---
 
-## Question 12: What is java ?
+## Question 4: What is the difference between Java and JavaScript?
 
-➢
-Java is a high-level, class-based, object-oriented programming language that is designed to have as fewimplementation dependencies as possible.
-➢
-It is a general-purpose programming language intended to let programmers write once, run anywhere,meaning that compiled Java code can run on all platforms that support Java without the need to recompile.
-➢
-it is used to develop a wide variety of applications, including:
-➢
-Web applications, Mobile applications, Desktop applications, Enterprise software, Scientific applications, andEmbedded systems.
+| Java                                              | JavaScript                                        |
+| ------------------------------------------------- | ------------------------------------------------- |
+| General-purpose programming language              | General-purpose scripting/programming language    |
+| Statically typed                                  | Dynamically typed                                 |
+| Uses JVM bytecode                                 | Commonly executed by a JavaScript engine          |
+| Class-based object model                          | Prototype-based object model                      |
+| Common in backend, enterprise and Android systems | Common in browsers, frontend and Node.js backends |
+| Usually compiled before execution                 | Parsed and JIT-compiled by modern engines         |
 
-## Question 13: What are the main features of java ?
+JavaScript is not limited to browsers. It can also run on servers through environments such as Node.js.
 
-1.
-Simple and Easy to Learn. Java is easy to learn and simple to use as a programming language.
-2.
-Object-Oriented Programming.
-3.
-Platform Independence.
-4.
-Automatic Memory Management.
-5.
-Security.
-6.
-Rich API.
-7.
-Multithreading.
-8.
-High Performance
-9.
-Scalability
+Despite their names, Java and JavaScript are different languages.
 
-## Question 14: What is differ b/w java and javascript ?
+---
 
-➢
-Java is an OOP programming language while Java Script is an OOP scripting language.
-➢
-Java creates applications that run in a virtual machine or browser while JavaScript code is run on a browseronly.
-➢
-Java code needs to be compiled while JavaScript code are all in text.
+## Question 5: What is the difference between JDK, JRE, and JVM?
 
-## Question 15: What are the purpose of access modifiers in java ?
+| Component | Purpose                                                                  |
+| --------- | ------------------------------------------------------------------------ |
+| JVM       | Executes Java bytecode                                                   |
+| JRE       | Provides the JVM and runtime libraries required to run Java applications |
+| JDK       | Provides development tools, runtime components and the JVM               |
 
-➢
-Access modifiers in Java are used to control the access level of classes, methods, variables, and constructors.
-➢
-They are used to restrict access to certain parts of a program, which can help to improve security and makethe code more maintainable.
+The JDK contains tools such as:
 
-## Question 16: Differ b/w public, private, protected & default in java ?
+- `javac` — compiler
+- `java` — application launcher
+- `javadoc` — documentation generator
+- `jar` — archive tool
+- `jdb` — debugger
+- `jlink` and `jpackage` — runtime and packaging tools
 
-There are four access modifiers in Java:
-Public:
-Public members are accessible from anywhere in the program.
-Private:
-Private members are only accessible from within the class in which they are declared.
-Protected:
-Protected members are accessible from within the class in which they are declared, as well as from any subclasses of that class.
-Default:
-Default members are accessible from within the package in which they are declared.
+```mermaid
+flowchart TD
+    JDK[JDK] --> DEV[Development Tools]
+    JDK --> JRE[JRE / Runtime Components]
+    JRE --> LIB[Java Runtime Libraries]
+    JRE --> JVM[JVM]
+    JVM --> BC[Executes Bytecode]
+```
 
-## Question 17: What is static method in java ?
+Modern Java distributions do not always provide a separate end-user JRE download, but the conceptual distinction remains useful in interviews.
 
-A static method in Java is a method that belongs to a class rather than an instance of a class. Static methods are used to access and change static variables and other non-object-based static methods.
-Here are some features of static methods:
-•
-Static methods are called using the class name, not the instance name.
-•
-Static methods can only access static variables and other static methods.
-•
-Static methods cannot access non-static variables or non-static methods.
-•
-Static methods are typically used for utility functions, such as mathematical functions or string manipulationfunctions.
+---
 
-## Question 18: What is method overriding in java ?
+## Question 6: What is the purpose of the `main()` method?
 
-➢
-In Java, method overriding occurs when a subclass (child class) has the same method as the parent class. Inother words, method overriding occurs when a subclass provides a particular implementation of a methoddeclared by one of its parent classes.
-➢
-To override a method, the subclass must have the same method name, return type, and parameter list as themethod in the parent class. The overriding method can also return a subtype of the type returned by theoverridden method.
-Here is an example of method overriding:
+For a traditional Java application, `main()` is the entry point used by the Java launcher.
+
+```java
+public static void main(String[] args) {
+    System.out.println("Application started");
+}
+```
+
+Explanation:
+
+- `public`: the launcher must be able to access it.
+- `static`: it can be called without creating an object.
+- `void`: it does not return a value.
+- `main`: recognized entry-point name.
+- `String[] args`: contains command-line arguments.
+
+Example:
+
+```bash
+java Application development production
+```
+
+```java
+System.out.println(args[0]); // development
+System.out.println(args[1]); // production
+```
+
+Framework-based applications may have different runtime entry mechanisms internally, but the Java launcher convention remains important.
+
+---
+
+## Question 7: Can a Java application run without a `main()` method?
+
+A class launched directly using the traditional `java ClassName` command normally requires a valid `main()` method.
+
+Older Java versions allowed static initialization code to execute before the launcher reported that `main()` was missing. This was not a proper replacement for a program entry point.
+
+Modern Java applications may be started indirectly through:
+
+- Application servers
+- Servlet containers
+- Testing frameworks
+- JavaFX launchers
+- Build tools
+- Framework bootstrap code
+
+However, some component in the runtime still provides an entry mechanism.
+
+---
+
+## Question 8: What are access modifiers in Java?
+
+Java provides four access levels:
+
+| Modifier        | Same class | Same package |       Subclass outside package | Everywhere |
+| --------------- | ---------: | -----------: | -----------------------------: | ---------: |
+| `private`       |        Yes |           No |                             No |         No |
+| Package-private |        Yes |          Yes |                             No |         No |
+| `protected`     |        Yes |          Yes | Yes, through inheritance rules |         No |
+| `public`        |        Yes |          Yes |                            Yes |        Yes |
+
+Package-private access is used when no access modifier is declared:
+
+```java
+class OrderValidator {
+}
+```
+
+Example:
+
+```java
+public class Account {
+
+    private double balance;
+
+    protected void validate() {
+    }
+
+    public double getBalance() {
+        return balance;
+    }
+}
+```
+
+Access modifiers support encapsulation and reduce unnecessary coupling.
+
+---
+
+## Question 9: What is a package in Java?
+
+A package is a namespace used to organize related Java types.
+
+A package can contain:
+
+- Classes
+- Interfaces
+- Enums
+- Records
+- Annotation interfaces
+- Exceptions
+
+```java
+package com.example.orders;
+```
+
+Benefits include:
+
+- Avoiding naming conflicts
+- Organizing source code
+- Supporting package-level access
+- Improving maintainability
+- Creating modular application structures
+
+Recommended naming convention:
+
+```text
+com.company.project.feature
+```
+
+Package names normally use lowercase letters.
+
+---
+
+## Question 10: How do you import classes and packages?
+
+Import a specific class:
+
+```java
+import java.util.ArrayList;
+```
+
+Import all accessible types in one package:
+
+```java
+import java.util.*;
+```
+
+A wildcard import does not import subpackages.
+
+This:
+
+```java
+import java.util.*;
+```
+
+does not import:
+
+```java
+java.util.concurrent.ExecutorService
+```
+
+The `java.lang` package is imported automatically:
+
+```java
+String value = "Java";
+System.out.println(value);
+```
+
+No explicit import is needed for `String`, `Object`, `Math`, or `System`.
+
+There is no “default package import.” The unnamed or default package is a separate concept and should generally be avoided in production projects.
+
+---
+
+## Question 11: What is a static import?
+
+A static import allows static members to be referenced without qualifying them with the class name.
+
+```java
+import static java.lang.Math.PI;
+import static java.lang.Math.sqrt;
+```
+
+```java
+double radius = 10;
+double area = PI * radius * radius;
+double root = sqrt(25);
+```
+
+Static imports should be used carefully because excessive use can make it unclear where a member comes from.
+
+---
+
+## Question 12: What does the `instanceof` operator do?
+
+`instanceof` checks whether an object is compatible with a class or interface type.
+
+```java
+if (animal instanceof Dog) {
+    Dog dog = (Dog) animal;
+    dog.bark();
+}
+```
+
+Modern pattern matching can combine the test and cast:
+
+```java
+if (animal instanceof Dog dog) {
+    dog.bark();
+}
+```
+
+If the reference is `null`, `instanceof` returns `false`.
+
+```java
+Object value = null;
+
+System.out.println(value instanceof String); // false
+```
+
+---
+
+## Question 13: What is an enum?
+
+An enum defines a fixed set of named constants.
+
+```java
+public enum OrderStatus {
+    CREATED,
+    CONFIRMED,
+    CANCELLED
+}
+```
+
+Usage:
+
+```java
+OrderStatus status = OrderStatus.CREATED;
+```
+
+Java enums can contain fields, constructors and methods:
+
+```java
+public enum Priority {
+
+    LOW(1),
+    MEDIUM(2),
+    HIGH(3);
+
+    private final int level;
+
+    Priority(int level) {
+        this.level = level;
+    }
+
+    public int getLevel() {
+        return level;
+    }
+}
+```
+
+Enums are safer than using unrelated strings or integer constants.
+
+---
+
+## Question 14: What are annotations?
+
+Annotations provide metadata about Java program elements.
+
+Built-in examples:
+
+```java
+@Override
+@Deprecated
+@SuppressWarnings("unchecked")
+```
+
+Custom annotation:
+
+```java
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+
+@Retention(RetentionPolicy.RUNTIME)
+public @interface Audited {
+}
+```
+
+Usage:
+
+```java
+@Audited
+public void transferMoney() {
+}
+```
+
+Annotations are widely used by frameworks for:
+
+- Dependency injection
+- Validation
+- Transaction management
+- ORM mapping
+- Security
+- REST endpoint mapping
+- Testing
+
+---
+
+## Question 15: What is immutability?
+
+An immutable object cannot have its observable state changed after construction.
+
+Example:
+
+```java
+public final class Money {
+
+    private final long amount;
+    private final String currency;
+
+    public Money(long amount, String currency) {
+        this.amount = amount;
+        this.currency = currency;
+    }
+
+    public long getAmount() {
+        return amount;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+}
+```
+
+Guidelines:
+
+- Make fields `private` and `final`.
+- Initialize all state in the constructor.
+- Do not expose mutator methods.
+- Prevent subclass-based mutation where appropriate.
+- Defensively copy mutable input and output values.
+
+Examples of immutable Java types include:
+
+- `String`
+- Wrapper classes
+- `LocalDate`
+- Many records, depending on their fields
+
+Immutability improves predictability and thread safety.
+
+---
+
+## Question 16: What is reflection?
+
+Reflection allows code to inspect classes, fields, constructors, methods and annotations at runtime.
+
+```java
+Class<?> type = String.class;
+
+System.out.println(type.getName());
+
+for (var method : type.getDeclaredMethods()) {
+    System.out.println(method.getName());
+}
+```
+
+Reflection is used by:
+
+- Spring dependency injection
+- Hibernate and JPA
+- Serialization libraries
+- Test frameworks
+- Dependency injection containers
+- Plugin systems
+
+Trade-offs include:
+
+- Reduced compile-time safety
+- More difficult refactoring
+- Possible access-control issues
+- Performance overhead
+- Complications for native images and modular applications
+
+---
+
+## Question 17: What are Java modules?
+
+The Java Platform Module System was introduced in Java 9.
+
+A module groups related packages and explicitly declares:
+
+- Which modules it depends on
+- Which packages it exposes
+
+Example `module-info.java`:
+
+```java
+module com.example.orders {
+    requires java.sql;
+
+    exports com.example.orders.api;
+}
+```
+
+Benefits include:
+
+- Stronger encapsulation
+- Explicit dependency declarations
+- Smaller custom runtime images
+- More reliable application configuration
+
+Modules are especially useful for large applications and Java platform internals, though many Spring projects still primarily use Maven or Gradle modules.
+
+---
+
+## Question 18: What is a native method?
+
+A native method is implemented in a language other than Java, commonly C or C++.
+
+```java
+public native int performNativeCalculation(int value);
+```
+
+Native methods are accessed through technologies such as JNI.
+
+Use cases include:
+
+- Operating-system integration
+- Existing native libraries
+- Hardware access
+- Performance-sensitive specialized code
+
+Native code reduces portability and introduces additional safety and deployment concerns.
+
+---
+
+## Question 19: What is recursion?
+
+Recursion occurs when a method calls itself directly or indirectly.
+
+```java
+static int factorial(int number) {
+    if (number <= 1) {
+        return 1;
+    }
+
+    return number * factorial(number - 1);
+}
+```
+
+A recursive algorithm requires:
+
+1. A base case
+2. Progress toward the base case
+
+Missing or unreachable base cases may cause `StackOverflowError`.
+
+Recursion is not dependent on post-increment or decrement operators.
+
+---
+
+## Question 20: Is Java pass-by-value or pass-by-reference?
+
+Java is always pass-by-value.
+
+For primitives, the primitive value is copied.
+
+```java
+static void increment(int value) {
+    value++;
+}
+```
+
+For objects, the reference value is copied.
+
+```java
+static void update(StringBuilder builder) {
+    builder.append(" updated");
+}
+```
+
+The caller and parameter may refer to the same object, so mutation is visible. Reassigning the parameter changes only the method’s local copy.
+
+---
+
+# `01-core-java/oop/basic-questions.md`
+
+## Question 1: What is method overriding?
+
+Method overriding occurs when a subclass provides its own implementation of an inherited instance method.
+
+```java
 class Animal {
-public void move() {
-System.out.println("Animals can move");
+
+    public void move() {
+        System.out.println("Animal moves");
+    }
 }
-}
+
 class Dog extends Animal {
-@Override
-public void move() {
-System.out.println("Dogs can walk and run");
+
+    @Override
+    public void move() {
+        System.out.println("Dog runs");
+    }
 }
-}
-public class TestDog {
-public static void main(String[] args) {
-Animal a = new Animal();
-Animal b = new Dog();
-a.move(); // prints "Animals can move"
-b.move(); // prints "Dogs can walk and run"
-}
-}
-In this example, the Dog class overrides the move() method from the Animal class. The Dog class's move() method prints a different message than the Animal class's move() method.
-When you call the move() method on a Dog object, the Dog class's move() method is called, even though the Dog object is an instance of the Animal class. This is because the Dog class overrides the move() method.
-Method overriding is a powerful feature that allows you to customize the behavior of classes in Java. It is one of the key features that makes Java an object-oriented programming language.
+```
 
-## Question 19: What is a package in java ?
+```java
+Animal animal = new Dog();
+animal.move(); // Dog runs
+```
 
-➢
-A java package is a group of similar types of classes, interfaces and sub-packages.
-➢
-Package in java can be categorized in two form, built-in package and user-defined package.
-There are many built-in packages such as java, lang, awt, javax, swing, net, io, util, sql etc.
+Rules include:
 
-## Question 20: How do you import packages in java ?
+- Same method name
+- Same parameter list
+- Same or covariant return type
+- Access level cannot be made more restrictive
+- Checked exceptions cannot be broadened
+- Static, private and final methods are not overridden
 
-Packages are used to avoid naming conflicts, and to control access to classes. For example, the java.lang package contains classes such as String, Object, and Math, which are fundamental to the Java language.
-Packages are declared using the package keyword.
-Package mypackage;
-the following code imports the String class from the java.lang package:
-import java.lang.String;
-the following code declares a nested package named mypackage.subpackage:
-package mypackage.subpackage;
+Runtime method dispatch selects the implementation based on the actual object type.
 
-## Question 21: What is the purpose of the instance of the operator in java ?
+---
 
-The instanceof operator in Java is used to check whether an object is an instance of a particular class or not. objectName instanceOf className; Here, if objectName is an instance of className , the operator returns true . Otherwise, it returns false .
-For Eg :
-if (myObject instanceof Dog) {
-// myObject is a Dog object
-} else if (myObject instanceof Animal) {
-// myObject is an Animal object, but not a Dog object
-} else {
-// myObject is not an Animal object
+## Question 2: What is method hiding?
+
+Method hiding occurs when a subclass declares a static method with the same signature as a static method in its parent class.
+
+```java
+class Parent {
+
+    static void display() {
+        System.out.println("Parent");
+    }
 }
 
-## Question 22: What is the purpose of the clone() method in java ?
+class Child extends Parent {
 
-clone() is a method in the Java programming language for object duplication. In Java, objects are manipulated through reference variables, and there is no operator for copying an object—the assignment operator duplicates the reference, not the object. The clone() method provides this missing functionality.
-public class MyClass {
-private int myField;
-public MyClass(int myField) {
-this.myField = myField;
+    static void display() {
+        System.out.println("Child");
+    }
 }
-public MyClass clone() {
-MyClass newMyClass = new MyClass(myField);
-return newMyClass;
+```
+
+```java
+Parent reference = new Child();
+reference.display(); // Parent
+```
+
+Static methods are selected using the reference or class type, not through runtime polymorphism.
+
+| Method overriding             | Method hiding                         |
+| ----------------------------- | ------------------------------------- |
+| Instance methods              | Static methods                        |
+| Runtime dispatch              | Compile-time selection                |
+| Based on actual object type   | Based on reference/class type         |
+| Supports runtime polymorphism | Does not provide runtime polymorphism |
+
+Method hiding should not be described as normal method overriding.
+
+---
+
+## Question 3: What is a Has-A relationship?
+
+A Has-A relationship means one object contains or refers to another object.
+
+```java
+class Engine {
 }
+
+class Car {
+
+    private final Engine engine;
+
+    Car(Engine engine) {
+        this.engine = engine;
+    }
 }
-public class Main {
-public static void main(String[] args) {
-MyClass myClass = new MyClass(10);
-MyClass clonedMyClass = myClass.clone();
-System.out.println(myClass.myField); // 10
-System.out.println(clonedMyClass.myField); // 10
+```
+
+### Composition
+
+The contained object’s lifecycle strongly depends on the container.
+
+```java
+class House {
+
+    private final Room room = new Room();
 }
+```
+
+### Aggregation
+
+The contained object can exist independently.
+
+```java
+class Team {
+
+    private final List<Player> players;
+
+    Team(List<Player> players) {
+        this.players = players;
+    }
 }
+```
 
-## Question 23: What is the purpose of the equals() methods in java ?
+Both represent object relationships, but composition generally indicates stronger ownership.
 
-equals() method is primarily used to compare the 'value' of two objects. It's an instance method that's part of the Object class, which is the parent class of all classes in Java. This means you can use . equals() to compare any two objects in Java.
-For Eg:
-String str1 = "Hello, World!";
-String str2 = "Hello, World!";
-// Compare the two strings for equality
-boolean areEqual = str1.equals(str2);
-// Print the result
-System.out.println(areEqual);
+---
 
-## Question 24: What is the purpose of the hashcode() method in java ?
+## Question 4: Is Java purely object-oriented?
 
-The hashCode() method in Java is a built-in function used to return an integer hash code representing the value of the object, used with the syntax, int hash = targetString. hashCode(); . It plays a crucial role in data retrieval, especially when dealing with Java collections like HashMap and HashSet.
-SOURCE CODE :
-String str = "Hello, world!";
-int hashCode = str.hashCode();
-System.out.println(hashCode);
-OUTPUT
-"Hello, world!"
+Java is strongly object-oriented but is not considered purely object-oriented because it provides primitive types:
 
-## Question 25: What is the purpose of the compareTo() method in java ?
+```java
+int value = 10;
+boolean active = true;
+```
 
-The compareTo() method returns an integer value that represents the comparison result. If the result is less than 0, str1 comes before str2 in lexicographical order. If the result is greater than 0, str1 comes after str2. If the result is 0, it means that both strings are equal.
-SOURCE CODE:
-String str1 = "Hello";
-String str2 = "World";
-int result = str1.compareTo(str2);
-if (result > 0) {
-System.out.println("str1 is greater than str2");
-} else if (result < 0) {
-System.out.println("str1 is less than str2");
-} else {
-System.out.println("str1 is equal to str2");
+Java also supports static members and other constructs that do not require object instances.
+
+The absence of operator overloading or class-based multiple inheritance is not the primary reason Java is not considered purely object-oriented.
+
+---
+
+# `01-core-java/serialization/basic-questions.md`
+
+## Question 1: What are serialization and deserialization?
+
+Serialization converts an object’s state into a byte representation.
+
+Deserialization reconstructs an object from that representation.
+
+```java
+class User implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    private String username;
 }
-OUTPUT :
-"str1 is less than str2"
+```
 
-## Question 26: What is the purpose of the equals() method in java ?
+Serialization may be useful for:
 
-equals() method is primarily used to compare the 'value' of two objects. It's an instance method that's part of the Object class, which is the parent class of all classes in Java. This means you can use . equals() to compare any two objects in Java.
-Source code :
-String str1 = "Hello, World!";
-String str2 = "Hello, World!";
-// Compare the two strings for equality.
-boolean isEqual = str1.equals(str2);
-// Print the result.
-System.out.println(isEqual);
-OUTPUT:
-True //Because two strings are equal
+- Legacy object persistence
+- Inter-process communication
+- Session storage
+- Caching
 
-## Question 27: What is JDBC? How is it used in Java applications?
+Java native serialization should be used cautiously because of:
 
-JDBC (Java Database Connectivity) is an API for connecting to databases. 
-Steps: 
-1. Load driver. 
-2. Establish connection. 
-3. Execute SQL queries. 
-4. Close connection.
+- Security risks
+- Versioning complexity
+- Tight coupling to Java classes
+- Poor interoperability
 
-## Question 28: Is Java pass-by-value or pass-by-reference?
+Modern distributed systems often prefer JSON, Protocol Buffers, Avro or other explicit formats.
 
-No answer provided yet.
+---
 
-## Question 29: What is type erasure?
+## Question 2: What is the purpose of `clone()`?
 
-No answer provided yet.
+`Object.clone()` creates a field-by-field copy of an object, normally producing a shallow copy.
 
-## Question 30: What is java HashMap ?
+Using it requires `Cloneable`; otherwise, `CloneNotSupportedException` is thrown.
 
-HashMap in Java stores the data in (Key, Value) pairs, and you can access them by an index of another type (e.g. an Integer). One object is used as a key (index) to another object (value). If you try to insert the duplicate key in HashMap, it will replace the element of the corresponding key.
-Here are some of the key features of HashMaps:
-❖
-HashMaps store elements in key-value pairs.
-❖
-HashMaps are unsorted, which means that the order in which elements are added to the map is not preserved.
-❖
-HashMaps allow for one null key and multiple null values.
-❖
-HashMaps provide efficient access and manipulation of data based on unique keys.
-❖
-HashMaps are widely used in Java applications.
-Here is an example of how to use a HashMap in Java:
-import java.util.HashMap;
-public class HashMapExample {
-public static void main(String[] args) {
-HashMap<String, Integer> hashMap = new HashMap<>();
-// Add elements to the HashMap
-hashMap.put("one", 1);
-hashMap.put("two", 2);
-hashMap.put("three", 3);
-// Get the value for a key
-Integer value = hashMap.get("two");
-// Remove an element from the HashMap
-hashMap.remove("three");
-// Check if the HashMap contains a key
-boolean containsKey = hashMap.containsKey("one");
-// Print the contents of the HashMap
-System.out.println(hashMap);
+```java
+class Person implements Cloneable {
+
+    private String name;
+
+    @Override
+    public Person clone() {
+        try {
+            return (Person) super.clone();
+        } catch (CloneNotSupportedException exception) {
+            throw new AssertionError(exception);
+        }
+    }
 }
+```
+
+Limitations include:
+
+- Shallow-copy behavior
+- Awkward `Cloneable` contract
+- Constructor bypass
+- Complexity with mutable fields and inheritance
+
+Copy constructors or factory methods are generally clearer:
+
+```java
+public Person(Person source) {
+    this.name = source.name;
 }
-Output:
-{one=1, two=2}
+```
 
-## Question 31: How do you create and manipulate Hashmaps in java ?
+A method that manually creates a new object is not automatically an override of `Object.clone()` unless it follows the correct contract.
 
-Here's how to create and manipulate a HashMap in Java:
-Create a HashMap instance using the syntax HashMap<KeyType, ValueType>. KeyType specifies the type of keys, and ValueType specifies the type of map will hold. For example, to create a HashMap called numberMapping that stores key-value pairs of strings and integers, you can use the following code:
-Map<String, Integer> numberMapping = new HashMap<>();
-Add key-value pairs to the HashMap using the put() function. For example, to add the key-value pairs "One" to 1, "Two" to 2, and "Three" to 3, you can use the following code:
-numberMapping.put("One", 1); numberMapping.put("Two", 2); numberMapping.put("Three", 3);
-Access elements in the HashMap using the get() function. For example, to print the value associated with the key "John", you can use the following code:
-System.out.println(hashMap.get("John"));
-Remove an element from the HashMap using the remove() function. For example, to remove the element associated with the key "Jim", you can use the following code:
-hashMap.remove("Jim");
-Check if an element is present in the HashMap using the containsKey() function. For example, to check if the element associated with the key "Jim" is present, you can use the following code:
-System.out.println(hashMap.containsKey("Jim"));
+---
 
-## Question 32: What is the purpose of the put() and get() methods in java HashMap ?
+# `01-core-java/generics/basic-questions.md`
 
-➢
-The put()and get() methods are two of the most important methods in the Java HashMap class.
-➢
-The put() method is used to add a new key-value pair to the map,
-➢
-the get() method is used to retrieve the value associated with a given key.
-➢
-The put() method returns the previous value associated with the key, or null if there was no previous value.
-➢
-The get() method returns the value associated with the key, or null if there is no value associated with the key.
-Here is an example of how to use the put() and get() methods:
-HashMap<String, Integer> map = new HashMap<>();
-// Add a new key-value pair to the map
-map.put("name", "John Doe");
-// Get the value associated with the key "name"
-String name = map.get("name");
-// Print the value
-System.out.println(name);
-OUTPUT:
-John Doe
+## Question 1: What are generics?
 
-## Question 33: What is the purpose of the remove() methods in java HashMap ?
+Generics allow classes, interfaces and methods to operate on types while preserving compile-time type safety.
 
-The remove() method removes the mapping and returns: the previous value associated with the specified key. true if the mapping is removed.
-The remove() method can be used to delete an item from a HashMap. This can be useful for a variety of reasons, such as:
-❖
-To remove an item that is no longer needed.
-❖
-To remove an item that is causing problems.
-❖
-To remove an item that is outdated.
-Here is an example of how to use the remove() method:
-SOURCE CODE:
-HashMap<String, Integer> hashMap = new HashMap<>();
-hashMap.put("one", 1);
-hashMap.put("two", 2);
-hashMap.put("three", 3);
-// Remove the item with the key "two"
-Integer removedValue = hashMap.remove("two");
-// Print the removed value
-System.out.println(removedValue); // 2
-
-## Question 34: What is a java HashSet ?
-
-➢
-HashSet in Java is a class from the Collections Framework.
-➢
-It allows you to store multiple values in a collection using a hash table.
-➢
-The hash table stores the values in an unordered method with the help of hashing mechanism.
-Here are some of the methods of HashSet in Java:
-❖
-add(E e) : Adds the specified element to the HashSet.
-❖
-contains(Object o) : Returns true if the specified element is present in the HashSet.
-❖
-remove(Object o) : Removes the specified element from the HashSet.
-❖
-size() : Returns the number of elements in the HashSet.
-❖
-isEmpty() : Returns true if the HashSet is empty.
-❖
-clear() : Removes all elements from the HashSet.
-
-## Question 35: How do you create and manipulate HashSets in java ?
-
-We add elements to the HashSet using the add() method, and then we print the HashSet using the println() method. We demonstrate checking if an element exists in the HashSet using the contains() method and removing an element using the remove() method.
-SOURCE CODE:
-import java.util.HashSet;
-public class HashSetExample {
-public static void main(String[] args) {
-/ Create a HashSet
-HashSet<String> names = new HashSet<>();
-// Add elements to the HashSet
-names.add("John");
-names.add("Alice");
-names.add("Bob");
-// Print the HashSet
-System.out.println("HashSet: " + names);
-// Check if an element exists in the HashSet
-boolean containsAlice = names.contains("Alice");
-System.out.println("Contains 'Alice': " + containsAlice);
-// Remove an element from the HashSet
-names.remove("Bob");
-System.out.println("After removal: " + names);
-}
-}
-OUTPUT :
-HashSet: [Alice, Bob, John]
-Contains 'Alice': true
-After removal: [Alice, John]
-
-## Question 36: What is the purpose of the add () method in java Hashset ?
-
-add() method in Java HashSet is used to add a specific element into a HashSet. This method will add the element only if the specified element is not present in the HashSet else the function will return False if the element is already present in the HashSet.
-HashSet<String> hashSet = new HashSet<>();
-// Add a new element to the HashSet
-hashSet.add("Element 1");
-// Check if an element is present in the HashSet
-boolean isPresent = hashSet.contains("Element 1");
-// Print the result
-System.out.println(isPresent); // true
-In this example, we create a new HashSet and add the element "Element 1" to it. We then check if the element "Element 1" is present in the HashSet. The contains() method returns true, which means that the element is present in the HashSet.
-The add() method is a very useful method for adding new elements to a HashSet and for checking if an element is already present in a HashSet.
-
-## Question 37: What is the purpose of the remove () method in java HashSet ?
-
-remove() method is present in the HashSet class inside the java. util package. The HashSet remove() method is used to remove only the specified element from the HashSet .
-SOURCE CODE:
-import java.util.HashSet;
-public class Main {
-public static void main(String[] args) {
-HashSet<String> names = new HashSet<>();
-names.add("John");
-names.add("Mary");
-names.add("Bob");
-// Remove the element "Mary" from the HashSet
-names.remove("Mary");
-// Print the remaining elements in the HashSet
-for (String name : names) {
-System.out.println(name);
-}
-}
-}
-OUTPUT :
-John
-Bob
-
-## Question 38: What is a java LinkedList ?
-
-A linked list in Java is a dynamic data structure whose size increases as you add the elements and decreases as you remove the elements from the list. The elements in the linked list are stored in containers. The list holds the link to the first container.
-
-## Question 39: How do you create and manipulate LinkedList in java ?
-
-Here are the steps on how to create and manipulate a Java LinkedList:
-Import the LinkedList class :
-The LinkedList class is part of the java.util package, so you need to import it before you can use it.
-Create a new LinkedList object :
-You can do this by using the new keyword, followed by the LinkedList class name.
-Add elements to the LinkedList :
-You can add elements to the LinkedList using the add() method. The add() method takes an element as an argument and adds it to the end of the LinkedList.
-Remove elements from the LinkedList :
-You can remove elements from the LinkedList using the remove() method. The remove() method takes an element as an argument and removes it from the LinkedList.
-Get the size of the LinkedList :
-You can get the size of the LinkedList using the size() method. The size() method returns the number of elements in the LinkedList.
-Check if the LinkedList is empty :
-You can check if the LinkedList is empty using the isEmpty() method. The isEmpty() method returns true if the LinkedList is empty, and false otherwise.
-Iterate over the LinkedList:
-You can iterate over the LinkedList using a for-each loop. The for-each loop will iterate over each element in the LinkedList and print it to the console.
-Here is an example of how to create and manipulate a Java LinkedList:
-import java.util.LinkedList;
-public class Main {
-public static void main(String[] args) {
-// Create a new LinkedList object
-LinkedList<String> names = new LinkedList<>();
-// Add elements to the LinkedList
-names.add("John");
-names.add("Mary");
-names.add("Bob");
-// Remove an element from the LinkedList
-names.remove("Bob");
-// Get the size of the LinkedList
-int size = names.size();
-// Check if the LinkedList is empty
-boolean isEmpty = names.isEmpty();
-// Iterate over the LinkedList
-for (String name : names) {
-System.out.println(name);
-}
-}
-}
-OUTPUT:
-John
-Mary
-
-## Question 40: What is the purpose of the add () and remove ()methods in java LinkedList ?
-
-The add() and remove() methods in Java LinkedList are used to add and remove elements from a linked list. The add() method takes an element as a parameter and adds it to the end of the list. The remove() method takes an element as a parameter and removes the first occurrence of that element from the list.
-Here is an example of how to use the add() and remove() methods:
-import java.util.LinkedList;
-public class Main {
-public static void main(String[] args) {
-LinkedList<String> list = new LinkedList<>();
-// Add elements to the list
-list.add("Hello");
-list.add("World");
-// Print the list
-System.out.println(list);
-// Remove an element from the list
-list.remove("Hello");
-// Print the list again
-System.out.println(list);
-}
-}
-OUTPUT
-[Hello, World]
-[World]
-
-## Question 41: What is java TreeSet?
-
-Published in the Java Collections group. Java provides a vast set of data structures for efficiently working with element collections. One such data structure is TreeSet, an implementation of a red-black tree in Java. TreeSet maintains a sorted order for storing unique elements.
-Source Code :
-import java.util.*;
-public class TreeSetExample {
-public static void main(String[] args) {
-// Create a TreeSet
-TreeSet<String> names = new TreeSet<>();
-// Add some elements to the TreeSet
-names.add("Alice");
-names.add("Bob");
-names.add("Carol");
-names.add("Dave");
-// Print the elements of the TreeSet
-for (String name : names) {
-System.out.println(name);
-}
-// Check if the TreeSet contains an element
-System.out.println(names.contains("Alice")); // true
-// Remove an element from the TreeSet
-names.remove("Bob");
-// Print the elements of the TreeSet
-for (String name : names) {
-System.out.println(name);
-}
-}
-}
-OUTPUT :
-Alice
-Carol
-Dave
-true
-Alice
-Carol
-Dave
-
-## Question 42: What is the purpose of add() and remove() methods in java TreeSets ?
-
-The add() method in a Java TreeSet is used to add a new element to the set. If the element is already present in the set, the add() method will do nothing and return false. Otherwise, the element will be added to the set and the method will return true.
-The remove() method in a Java TreeSet is used to remove an element from the set. If the element is not present in the set, the remove() method will do nothing and return false. Otherwise, the element will be removed from the set and the method will return true.
-Here is an example of how to use the add() and remove() methods in a Java TreeSet:
-import java.util.*;
-public class TreeSetExample {
-public static void main(String[] args) {
-TreeSet<Integer> treeSet = new TreeSet<>();
-// Add elements to the TreeSet
-treeSet.add(1);
-treeSet.add(2);
-treeSet.add(3);
-treeSet.add(4);
-treeSet.add(5);
-// Remove an element from the TreeSet
-treeSet.remove(3);
-// Print the elements in the TreeSet
-for (Integer element : treeSet) {
-System.out.println(element);
-}
-}
-}
-OUTPUT:
-
-## Question 43: What is the purpose of the contains() method in java Collections ?
-
-The contains() method of Java AbstractCollection is used to check whether an element is present in a Collection or not. It takes the element as a parameter and returns True if the element is present in the collection.
-SOURCE CODE:
-import java.util.ArrayList;
-public class Main {
-public static void main(String[] args) {
-ArrayList<String> names = new ArrayList<>();
-names.add("John");
-names.add("Mary");
-names.add("Bob");
-// Check if the collection contains the element "John"
-boolean containsJohn = names.contains("John");
-// Print the result
-System.out.println(containsJohn);
-}
-}
-OUTPUT :
-True
-
-## Question 44: What is the purpose of the isEmpty() method in java collections ?
-
-The isEmpty() method is a convenient way to check if a collection is empty. It is available in all collection interfaces, so you can use it with any type of collection.
-Source code :
-import java.util.*;
-public class Example {
-public static void main(String[] args) {
-// Create a new list
+```java
 List<String> names = new ArrayList<>();
-// Check if the list is empty
-if (names.isEmpty()) {
-System.out.println("The list is empty.");
-} else {
-System.out.println("The list is not empty.");
-}
-// Add an element to the list
-names.add("John Doe");
-// Check if the list is empty
-if (names.isEmpty()) {
-System.out.println("The list is empty.");
-} else {
-System.out.println("The list is not empty.");
-}
-}
-}
-Output :
-The list is empty.
-The list is not empty.
 
-## Question 45: What is the purpose of size() method in java collections ?
+names.add("Alice");
+// names.add(10); // Compilation error
+```
 
-The size() method simply retrieves the value of the internal variable that tracks the number of elements in the ArrayList. This variable is updated every time an element is added or removed from the ArrayList.
-The size() method in Java collections is used to get the number of elements in a collection. It is a very useful method for determining the length of a collection and for iterating over its elements. The size() method is available in all collection interfaces, including List, Set, and Map.
-Here is an example of how to use the size() method:
-import java.util.*;
-public class Example {
-public static void main(String[] args) {
-// Create a list of elements
-List<String> names = new ArrayList<>();
-names.add("John");
-names.add("Mary");
-names.add("Bob");
-// Get the size of the list
-int size = names.size();
-// Print the size of the list
-System.out.println("The size of the list is: " + size);
+Generic class:
+
+```java
+class Box<T> {
+
+    private T value;
+
+    void set(T value) {
+        this.value = value;
+    }
+
+    T get() {
+        return value;
+    }
 }
+```
+
+Benefits include:
+
+- Compile-time type checking
+- Reduced explicit casting
+- Reusable algorithms
+- Safer collection APIs
+
+---
+
+## Question 2: What is type erasure?
+
+Java generics are primarily implemented using type erasure.
+
+At compilation, generic type information is used for type checking, after which most type parameters are erased to their bounds.
+
+Conceptually:
+
+```java
+List<String> names;
+List<Integer> numbers;
+```
+
+both use the same runtime `List` class.
+
+Consequences include:
+
+- Cannot use primitive types directly as generic arguments.
+- Cannot normally create `new T()`.
+- Cannot create generic arrays such as `new T[10]`.
+- Cannot overload methods only by generic argument differences.
+- Runtime checks cannot usually distinguish `List<String>` from `List<Integer>`.
+
+The compiler may insert casts and bridge methods to maintain type safety.
+
+---
+
+# `02-collections/basic-questions.md`
+
+## Question 1: What is a `HashMap`?
+
+`HashMap` stores key-value mappings.
+
+```java
+Map<String, Integer> scores = new HashMap<>();
+
+scores.put("Alice", 90);
+scores.put("Bob", 85);
+
+Integer score = scores.get("Alice");
+```
+
+Important characteristics:
+
+- Keys are unique.
+- A new value replaces the existing value for the same key.
+- Allows one `null` key and multiple `null` values.
+- Does not guarantee iteration order.
+- Average lookup and insertion are approximately `O(1)`.
+- It is not thread-safe.
+
+Prefer declaring the interface type:
+
+```java
+Map<String, Integer> scores = new HashMap<>();
+```
+
+---
+
+## Question 2: What do `put()` and `get()` do?
+
+`put()` stores a key-value pair:
+
+```java
+Integer previous = map.put("one", 1);
+```
+
+It returns the previous value associated with the key, or `null` if there was no mapping.
+
+`get()` retrieves the value:
+
+```java
+Integer value = map.get("one");
+```
+
+It returns `null` when:
+
+- The key is absent, or
+- The key is explicitly mapped to `null`
+
+Use `containsKey()` when that distinction matters.
+
+```java
+if (map.containsKey("one")) {
+    System.out.println(map.get("one"));
 }
-OUTPUT:
-The size of the list is: 3
+```
 
-## Question 46: What is the purpose of the clear() method in java collections ?
+---
 
-The clear() method of Java Collection Interface removes all of the elements from this collection. It returns a Boolean value 'true', if it successfully empties the collection.
-SOURCE CODE :
-import java.util.ArrayList;
-public class Main {
-public static void main(String[] args) {
-ArrayList<String> list = new ArrayList<>();
-list.add("Hello");
-list.add("World");
-// Print the contents of the list
-System.out.println(list);
-// Clear the list
-list.clear();
-// Print the contents of the list again
-System.out.println(list);
-}
-}
-OUTPUT
-[Hello, World]
-[]
+## Question 3: What does `HashMap.remove()` return?
 
-## Question 47: What is the purpose of the iterator () method in java collections ?
+```java
+Integer removed = map.remove("one");
+```
 
-Java Iterator Interface of java collections allows us to access elements of the collection and is used to iterate over the elements in the collection(Map, List or Set). It helps to easily retrieve the elements of a collection and perform operations on each element.
-The Iterator interface provides three methods: hasNext(), next(), and remove().
-1.
-The hasNext() method returns true if there are more elements in the collection, and false otherwise.
-2.
-The next() method returns the next element in the collection
-3.
-The remove() method removes the current element from the collection.
-The iterator() method is a very useful method for iterating over collections in Java. It allows you to easily access and manipulate the elements of a collection.
-SOURCE CODE:
-import java.util.ArrayList;
-import java.util.Iterator;
-public class Main {
-public static void main(String[] args) {
-ArrayList<String> names = new ArrayList<>();
+`remove(key)` returns the previous value associated with the key, or `null`.
+
+The overload:
+
+```java
+boolean removed = map.remove("one", 1);
+```
+
+returns `true` only when the matching key-value pair was removed.
+
+These two overloads should not be described as returning the same type.
+
+---
+
+## Question 4: What is a `HashSet`?
+
+`HashSet` stores unique elements using hashing.
+
+```java
+Set<String> names = new HashSet<>();
+
 names.add("Alice");
 names.add("Bob");
-names.add("Charlie");
+names.add("Alice");
+```
+
+The second `"Alice"` is not added.
+
+Characteristics:
+
+- Does not allow duplicate elements
+- Allows one `null` element
+- Does not guarantee order
+- Average `add()`, `remove()` and `contains()` are approximately `O(1)`
+- Depends on correct `equals()` and `hashCode()` implementations
+
+`HashSet.add()` returns:
+
+- `true` if the set changed
+- `false` if an equal element already existed
+
+---
+
+## Question 5: What is a `LinkedList`?
+
+Java’s `LinkedList` is a doubly linked list implementing both `List` and `Deque`.
+
+```java
+Deque<String> queue = new LinkedList<>();
+
+queue.addLast("A");
+queue.addLast("B");
+queue.removeFirst();
+```
+
+Characteristics:
+
+- Maintains insertion order
+- Allows duplicates and `null`
+- Fast operations at known ends
+- Slow indexed access: `O(n)`
+- Higher memory overhead than `ArrayList`
+
+For stack and queue operations, `ArrayDeque` is usually preferred unless `null` elements or specific linked-list behavior are required.
+
+---
+
+## Question 6: What is a `TreeSet`?
+
+`TreeSet` stores unique elements in sorted order.
+
+It is implemented using a balanced red-black tree.
+
+```java
+Set<Integer> values = new TreeSet<>();
+
+values.add(30);
+values.add(10);
+values.add(20);
+
+System.out.println(values); // [10, 20, 30]
+```
+
+Characteristics:
+
+- Unique elements
+- Natural or comparator-based ordering
+- `O(log n)` add, remove and contains operations
+- Normally does not allow `null` with natural ordering
+- Implements `NavigableSet`
+
+---
+
+## Question 7: What does `contains()` do?
+
+`contains()` checks whether a collection contains an element according to its equality or ordering rules.
+
+```java
+boolean present = names.contains("Alice");
+```
+
+For hash-based collections, it depends on `hashCode()` and `equals()`.
+
+For sorted collections, behavior may depend on `compareTo()` or a `Comparator`.
+
+---
+
+## Question 8: What does `isEmpty()` do?
+
+`isEmpty()` returns whether the collection contains no elements.
+
+```java
+if (names.isEmpty()) {
+    System.out.println("No names available");
+}
+```
+
+It is clearer than:
+
+```java
+if (names.size() == 0) {
+}
+```
+
+---
+
+## Question 9: What does `size()` do?
+
+`size()` returns the number of elements in a collection or mappings in a map.
+
+```java
+int numberOfNames = names.size();
+int numberOfMappings = map.size();
+```
+
+The implementation is not required to calculate size in exactly the same internal way for every collection type.
+
+---
+
+## Question 10: What does `clear()` return?
+
+`clear()` removes all elements or mappings.
+
+```java
+names.clear();
+map.clear();
+```
+
+It returns `void`, not `boolean`.
+
+---
+
+## Question 11: What is an iterator?
+
+An `Iterator` traverses elements of a collection.
+
+```java
 Iterator<String> iterator = names.iterator();
+
 while (iterator.hasNext()) {
-String name = iterator.next();
-System.out.println(name);
+    String name = iterator.next();
+
+    if (name.isBlank()) {
+        iterator.remove();
+    }
 }
+```
+
+Main methods:
+
+- `hasNext()`
+- `next()`
+- `remove()` — optional operation
+- `forEachRemaining()`
+
+A `Map` is not directly a `Collection`. Iterate over its views:
+
+```java
+for (Map.Entry<String, Integer> entry : map.entrySet()) {
+    System.out.println(entry.getKey() + ": " + entry.getValue());
 }
+```
+
+---
+
+## Question 12: What is fail-fast iteration?
+
+A fail-fast iterator may throw `ConcurpZEAWYtiB6bJ16NuLbGCc6CZ6jJdKfb63` when it detects that a collection has been structurally modified outside the iterator during iteration.
+
+Incorrect:
+
+```java
+for (String name : names) {
+    if (name.isBlank()) {
+        names.remove(name);
+    }
 }
-OUTPUT :
-Alice
-Bob
-Charlie
+```
 
-## Question 48: What is the java Comparator ?
+Safer:
 
-A comparator interface is used to order the objects of user-defined classes. A comparator object is capable of comparing two objects of the same class.
-The Comparator interface in Java is used to order the objects of a user-defined class. It provides a single method, compare(), which takes two objects as input and returns an integer value indicating whether the first object is less than, equal to, or greater than the second object. The compare() method has the following signature:
-int compare(T o1, T o2);
-where T is the type of object being compared.
-The Comparator interface can be used to sort collections of objects using the Collections.sort() or Arrays.sort() methods. It can also be used to create sorted sets and maps.
-Here is an example of how to use the Comparator interface to sort a collection of objects:
-SOURCE CODE :
-import java.util.*;
-public class ComparatorExample {
-public static void main(String[] args) {
-// Create a list of objects
-List<Integer> numbers = new ArrayList<>();
-numbers.add(10);
-numbers.add(5);
-numbers.add(20);
-// Create a comparator to compare the objects by their values
-Comparator<Integer> comparator = new Comparator<Integer>() {
-@Override
-public int compare(Integer o1, Integer o2) {
-return o1.compareTo(o2);
+```java
+Iterator<String> iterator = names.iterator();
+
+while (iterator.hasNext()) {
+    if (iterator.next().isBlank()) {
+        iterator.remove();
+    }
 }
-};
-// Sort the list using the comparator
-Collections.sort(numbers, comparator);
-// Print the sorted list
-for (Integer number : numbers) {
-System.out.println(number);
+```
+
+Fail-fast behavior is a best-effort bug-detection mechanism, not a thread-safety guarantee.
+
+Concurrent collections provide different consistency guarantees and do not necessarily use fail-fast iterators.
+
+---
+
+# `02-collections/sorting/basic-questions.md`
+
+## Question 1: What does `equals()` do?
+
+`equals()` determines logical equality.
+
+The default `Object.equals()` compares identity, but classes can override it.
+
+```java
+String first = new String("Java");
+String second = new String("Java");
+
+System.out.println(first == second);      // false
+System.out.println(first.equals(second)); // true
+```
+
+When overriding `equals()`, follow these properties:
+
+- Reflexive
+- Symmetric
+- Transitive
+- Consistent
+- Returns false for `null`
+
+---
+
+## Question 2: What does `hashCode()` do?
+
+`hashCode()` returns an integer used by hash-based collections to select a bucket.
+
+```java
+int hash = "Hello".hashCode();
+System.out.println(hash);
+```
+
+It does not have to be globally unique.
+
+Contract:
+
+```text
+If a.equals(b) is true,
+a.hashCode() must equal b.hashCode().
+```
+
+The reverse is not required. Unequal objects may have the same hash code.
+
+Always override `hashCode()` when overriding `equals()`.
+
+---
+
+## Question 3: What does `compareTo()` do?
+
+`compareTo()` defines a type’s natural ordering through `Comparable`.
+
+```java
+int result = first.compareTo(second);
+```
+
+Meaning:
+
+- Negative: first comes before second
+- Zero: considered equal for ordering
+- Positive: first comes after second
+
+Example:
+
+```java
+public class Employee
+        implements Comparable<Employee> {
+
+    private final int id;
+
+    public Employee(int id) {
+        this.id = id;
+    }
+
+    @Override
+    public int compareTo(Employee other) {
+        return Integer.compare(this.id, other.id);
+    }
 }
-}
-}
-OUTPUT
+```
 
-## Question 49: How do you implement custom sorting using a comparator in java ?
+Avoid subtraction:
 
-To sort a collection of objects by multiple criteria, first define the class representing your objects. Then, create a custom comparator class that implements the Comparator interface. Override the compare method to define how objects should be compared based on different criteria
-SOURCE CODE:
-import java.util.Comparator;
-public class StudentComparator implements Comparator<Student> {
-@Override
-public int compare(Student student1, Student student2) {
-int nameComparison = student1.getName().compareTo(student2.getName());
-if (nameComparison == 0) {
-return student1.getAge() - student2.getAge();
-} else {
-return nameComparison;
-}
-}
-}
-To use this comparator, you would simply pass it to the sort() method of a list of students:
-SOURCE CODE:
-List<Student> students = new ArrayList<>();
-students.add(new Student("Alice", 12));
-students.add(new Student("Bob", 10));
-students.add(new Student("Carol", 11));
-students.sort(new StudentComparator());
-After sorting, the students list will be in the following order:
-[Bob, Carol, Alice]
-You can use custom comparators to sort any collection of objects, regardless of their type. This can be useful for sorting objects based on multiple criteria or for sorting objects in a specific order that is not defined by the object's class.
+```java
+return this.id - other.id;
+```
 
-## Question 50: What is fail-fast iteration?
+because it may overflow.
 
-No answer provided yet.
+---
 
-## Question 51: Discuss the Stream API in Java.
+## Question 4: What is the difference between `Comparable` and `Comparator`?
 
-The Stream API processes collections of objects in a functional style, supporting operations 
-like filter, map, and reduce.
+| `Comparable<T>`                   | `Comparator<T>`                      |
+| --------------------------------- | ------------------------------------ |
+| Defines natural ordering          | Defines external/custom ordering     |
+| Method: `compareTo(T other)`      | Method: `compare(T first, T second)` |
+| Implemented by the compared class | Separate object or lambda            |
+| Usually one natural order         | Multiple custom orders possible      |
+| Package: `java.lang`              | Package: `java.util`                 |
 
-## Question 52: Intermediate vs terminal operations?
+Example comparator:
 
-No answer provided yet.
+```java
+Comparator<Student> byNameThenAge =
+        Comparator.comparing(Student::getName)
+                  .thenComparingInt(Student::getAge);
+```
 
-## Question 53: `reduce()` vs `collect()`?
+```java
+students.sort(byNameThenAge);
+```
 
-No answer provided yet.
+`Comparator` is a functional interface whose primary abstract method is `compare()`. It is not necessary to implement `equals()`.
 
-## Question 54: Discuss the lifecycle of a thread in Java.
+---
 
-1. New: Thread is created. 
-2. Runnable: Thread is ready to run. 
-3. Running: Thread is executing. 
-4. Blocked/Waiting: Thread is waiting for a resource. 
-5. Terminated: Thread execution is complete.
+# `03-streams/basic-questions.md`
 
-## Question 55: Explain the concept of synchronization in Java.
+## Question 1: What is the Stream API?
 
-Synchronization prevents thread interference by allowing only one thread to access a critical 
-section at a time, using the synchronized keyword.
+The Stream API processes data declaratively through pipelines.
 
-## Question 56: What is java thread ?
+```java
+List<String> result = names.stream()
+        .filter(name -> !name.isBlank())
+        .map(String::toUpperCase)
+        .sorted()
+        .toList();
+```
 
-A thread in Java is the direction or path that is taken while a program is being executed. Generally, all the programs have at least one thread, known as the main thread, that is provided by the JVM or Java Virtual Machine at the starting of the program's execution.
+A stream:
 
-## Question 57: How do you create and start a thread in java ?
+- Does not store data
+- Usually does not modify the source
+- Is lazily evaluated
+- Can normally be consumed only once
+- Supports sequential and parallel processing
 
-There are two ways to create threads in Java:
-1.
-By extending the Thread class and implementing the run() method.
-2.
-By implementing the Runnable interface and passing an instance of the class to the Thread constructor.
-Once a thread is created, it can be started by calling the start() method. The thread will then run concurrently with the main thread until it finishes executing its run() method.
-To create a thread by extending the Thread class, you need to create a subclass of Thread and override the run() method. The run() method contains the code that will be executed by the thread.
-To start a thread, you need to call the start() method on the thread object. The start() method causes the thread to begin executing the run() method.
-Here is an example of how to create and start a thread by extending the Thread class:
-SOURCE CODE :
-public class MyThread extends Thread {
-@Override
-public void run() {
-System.out.println("Hello from MyThread!");
-}
-}
-public class Main {
-public static void main(String[] args) {
-MyThread thread = new MyThread();
+---
+
+## Question 2: What is the difference between intermediate and terminal operations?
+
+### Intermediate operations
+
+Intermediate operations return another stream and are lazy.
+
+Examples:
+
+- `filter()`
+- `map()`
+- `flatMap()`
+- `sorted()`
+- `distinct()`
+- `limit()`
+
+### Terminal operations
+
+Terminal operations produce a result or side effect and trigger processing.
+
+Examples:
+
+- `collect()`
+- `toList()`
+- `reduce()`
+- `count()`
+- `forEach()`
+- `findFirst()`
+
+```java
+long count = names.stream()
+        .filter(name -> name.startsWith("A"))
+        .count();
+```
+
+`filter()` is intermediate, while `count()` is terminal.
+
+---
+
+## Question 3: What is the difference between `reduce()` and `collect()`?
+
+`reduce()` combines stream elements into one value.
+
+```java
+int total = numbers.stream()
+        .reduce(0, Integer::sum);
+```
+
+Use it for immutable scalar-style reduction:
+
+- Sum
+- Product
+- Minimum
+- Maximum
+- Concatenated immutable value
+
+`collect()` performs mutable reduction into a container.
+
+```java
+Map<String, List<Employee>> byDepartment =
+        employees.stream()
+                 .collect(Collectors.groupingBy(
+                         Employee::getDepartment
+                 ));
+```
+
+Use it for:
+
+- Lists
+- Sets
+- Maps
+- Grouping
+- Partitioning
+- Joining
+- Statistics
+
+Do not mutate an external shared collection from a parallel stream. Use a proper collector.
+
+---
+
+# `04-concurrency/basic-questions.md`
+
+## Question 1: What is a thread?
+
+A thread is an independent path of execution within a process.
+
+Threads in the same process share:
+
+- Heap memory
+- Static variables
+- Open process resources
+
+Each thread has its own:
+
+- Stack
+- Program counter
+- Execution state
+
+Java applications begin with at least one main thread.
+
+---
+
+## Question 2: How do you create and start a thread?
+
+### Using `Runnable`
+
+```java
+Runnable task = () ->
+        System.out.println(
+                Thread.currentThread().getName()
+        );
+
+Thread thread = new Thread(task);
 thread.start();
-}
-}
-OUTPUT
-Hello from MyThread!
-create a thread by implementing the Runnable interface, you need to create a class that implements the Runnable interface. The Runnable interface has a single method, run(), which contains the code that will be executed by the thread.
-To start a thread, you need to create a Thread object and pass the Runnable object to the constructor. Then, you need to call the start() method on the Thread object.
-Here is an example of how to create and start a thread by implementing the Runnable interface:
-SOURCE CODE :
-public class MyRunnable implements Runnable {
-@Override
-public void run() {
-System.out.println("Hello from MyRunnable!");
-}
-}
-public class Main {
-public static void main(String[] args) {
-MyRunnable runnable = new MyRunnable();
-Thread thread = new Thread(runnable);
-thread.start();
-}
-}
-OUTPUT :
-Hello from MyRunnable!
+```
 
-## Question 58: What is synchronization in java ?
+### Using an executor
 
-Synchronization in java is the capability to control the access of multiple threads to any shared resource. In the Multithreading concept, multiple threads try to access the shared resources at a time to produce inconsistent results. The synchronization is necessary for reliable communication between threads.
+```java
+ExecutorService executor =
+        Executors.newFixedThreadPool(4);
 
-## Question 59: How do you achieve synchronization in java ?
+executor.submit(task);
+executor.shutdown();
+```
 
-In Java, synchronization can be achieved using the synchronized keyword and the volatile modifier. The synchronized Keyword: The synchronized keyword is used to define critical sections of code that should be accessed by only one thread at a time. It can be applied to methods or code blocks.
-Eg :
-// Synchronize a method
+Prefer task-based abstractions such as `Runnable`, `Callable`, executors or virtual threads over extending `Thread` in production code.
+
+Calling `run()` directly does not start a new thread:
+
+```java
+thread.run();   // Runs on current thread
+thread.start(); // Starts a new thread
+```
+
+---
+
+## Question 3: What are Java thread states?
+
+`Thread.State` defines six states:
+
+1. `NEW`
+2. `RUNNABLE`
+3. `BLOCKED`
+4. `WAITING`
+5. `TIMED_WAITING`
+6. `TERMINATED`
+
+```mermaid
+stateDiagram-v2
+    [*] --> NEW
+    NEW --> RUNNABLE: start()
+    RUNNABLE --> BLOCKED: waiting for monitor lock
+    RUNNABLE --> WAITING: wait() / join()
+    RUNNABLE --> TIMED_WAITING: sleep() / timed wait
+    BLOCKED --> RUNNABLE: lock acquired
+    WAITING --> RUNNABLE: notified or joined thread finishes
+    TIMED_WAITING --> RUNNABLE: timeout or notification
+    RUNNABLE --> TERMINATED: run() completes
+    TERMINATED --> [*]
+```
+
+Java does not define a separate `RUNNING` value in `Thread.State`. `RUNNABLE` includes both ready-to-run and currently executing states.
+
+---
+
+## Question 4: What is synchronization?
+
+Synchronization coordinates access to shared mutable state.
+
+```java
 public synchronized void increment() {
-// ...
+    count++;
 }
-// Synchronize a code block
-synchronized (obj) {
-// ...
+```
+
+Equivalent lock target:
+
+```java
+public void increment() {
+    synchronized (this) {
+        count++;
+    }
 }
+```
 
-## Question 60: What are the states of a thread in java ?
+Synchronization provides:
 
-A thread in Java can exist in one of the following six states at any given time:
-1.
-New: When a thread object is created, it is in the new state. It is not yet runnable.
-2.
-Runnable: A thread that is ready to run is in the runnable state. It is waiting to be scheduled by the operating system.
-3.
-Running: A thread that is currently executing is in the running state.
-4.
-Blocked: A thread that is waiting for an event to occur, such as a lock to become available, is in the blocked state.
-5.
-Waiting: A thread that is waiting for another thread to finish executing is in the waiting state.
-6.
-Terminated: A thread that has finished executing is in the terminated state
-Example :
-Thread thread = new Thread();
-Thread.State state = thread.getState();
+- Mutual exclusion
+- Memory visibility
+- Happens-before relationships
 
-## Question 61: What is deadlock in java ?
+It should protect invariants, not merely individual variables.
 
-Deadlock in Java is a condition where two or more threads are blocked forever, waiting for each other. This usually happens when multiple threads need the same locks but obtain them in different orders. Multithreaded Programming in Java suffers from the deadlock situation because of the synchronized keyword.
+`volatile` provides visibility and ordering but does not provide mutual exclusion. Therefore, volatile alone is not a general synchronization mechanism.
 
-## Question 62: How do you prevent deadlock in java ?
+---
 
-Here are some ways to prevent deadlock in Java:
-Avoid unnecessary locking :
-Only lock resources when absolutely necessary, and release them as soon as possible.
-Acquire locks in a consistent order :
-This means that all threads should acquire locks in the same order, to avoid situations where two threads are waiting for each other to release locks.
-Avoid nested locks :
-This means that a thread should not acquire a second lock while it is already holding another lock.
-Use timeouts when acquiring locks.
-This will help to prevent situations where a thread is waiting indefinitely for a lock to be released.
-Use lock-free data structures :
-These data structures are designed to be used by multiple threads without the need for locks.
-Use a deadlock detection and avoidance algorithm :
-This can be a complex solution, but it can be effective in preventing deadlocks in situations where other methods are not feasible.
-Here are some additional tips for preventing deadlocks in Java:
-Use proper synchronization techniques :
-When multiple threads are accessing the same data, it is important to use synchronization techniques to ensure that the data is not corrupted.
-Be aware of the potential for deadlocks :
-When designing your code, be aware of the potential for deadlocks and take steps to avoid them.
-Test your code thoroughly :
-Test your code thoroughly to ensure that it is free of deadlocks.
-These tips, you can help to prevent deadlocks in your Java code.
+## Question 5: What is a synchronized block?
 
-## Question 63: What is the purpose of the Wait(), notify(), notifyAll() methods in java ?
+A synchronized block protects only a selected critical section.
 
-The wait(), notify(), and notifyAll() methods in Java are used to coordinate actions of multiple threads. They are part of the Object class and are used to implement inter-thread communication.
-❖
-wait(): Causes the current thread to wait indefinitely until another thread invokes notify() or notifyAll() on the same object.
-❖
-notify(): Wakes up a single thread that is waiting on that object's monitor.
-❖
-notifyAll(): Wakes up all threads that are waiting on that object's monitor.
-These methods are typically used in conjunction with synchronized blocks to ensure that only one thread can access a shared resource at a time. For example, a producer-consumer problem could be solved using wait() and notify() as follows:
-SOURCE CODE :
-class Producer {
-private Object lock;
-public Producer(Object lock) {
-this.lock = lock;
+```java
+private final Object lock = new Object();
+
+public void process() {
+    prepareData();
+
+    synchronized (lock) {
+        updateSharedState();
+    }
+
+    publishResult();
 }
-public void produce() {
+```
+
+Benefits over synchronizing an entire method include:
+
+- Smaller lock scope
+- Less contention
+- Explicit lock ownership
+- Improved concurrency
+
+Static synchronization locks the `Class` object:
+
+```java
+public static synchronized int nextId() {
+    return ++counter;
+}
+```
+
+This synchronizes on:
+
+```java
+CurrentClass.class
+```
+
+---
+
+## Question 6: What is deadlock?
+
+Deadlock occurs when threads wait indefinitely for locks held by one another.
+
+```text
+Thread A holds Lock 1 and waits for Lock 2
+Thread B holds Lock 2 and waits for Lock 1
+```
+
+Prevention techniques:
+
+- Acquire locks in a consistent global order.
+- Avoid unnecessary nested locking.
+- Keep lock scopes small.
+- Use `tryLock()` with timeouts where appropriate.
+- Avoid calling unknown external code while holding locks.
+- Prefer higher-level concurrency utilities.
+- Analyze thread dumps during production incidents.
+
+Deadlock is not caused by `synchronized` itself. It is caused by incorrect lock coordination.
+
+---
+
+## Question 7: What do `wait()`, `notify()` and `notifyAll()` do?
+
+These methods coordinate threads waiting on an object monitor.
+
+- `wait()` releases the monitor and suspends the current thread.
+- `notify()` wakes one waiting thread.
+- `notifyAll()` wakes all waiting threads.
+
+They must be called while holding the same object’s monitor:
+
+```java
 synchronized (lock) {
-// Produce an item
-// Notify the consumer that an item is available
-lock.notify();
+    while (!condition) {
+        lock.wait();
+    }
+
+    consume();
 }
-}
-}
-class Consumer {
-private Object lock;
-public Consumer(Object lock) {
-this.lock = lock;
-}
-public void consume() {
+```
+
+Producer:
+
+```java
 synchronized (lock) {
-// Wait for an item to be produced
-lock.wait();
-// Consume the item
+    produce();
+    condition = true;
+    lock.notifyAll();
 }
+```
+
+Always check conditions in a loop because of:
+
+- Spurious wakeups
+- Competition between awakened threads
+- Conditions changing before lock reacquisition
+
+For most producer-consumer problems, prefer `BlockingQueue`.
+
+---
+
+## Question 8: What is the difference between concurrency and parallelism?
+
+**Concurrency** means multiple tasks make progress during overlapping time periods.
+
+**Parallelism** means multiple tasks execute simultaneously on different processing units.
+
+A single-core system can support concurrency through task switching but cannot execute CPU instructions from multiple threads at the exact same instant.
+
+Parallelism is one possible way to achieve concurrency.
+
+---
+
+## Question 9: What is happens-before?
+
+Happens-before is a Java Memory Model relationship that guarantees visibility and ordering between actions.
+
+Examples include:
+
+- An unlock happens-before a later lock on the same monitor.
+- A volatile write happens-before a later volatile read of the same variable.
+- `Thread.start()` happens-before actions in the started thread.
+- Actions in a thread happen-before another thread successfully returns from `join()`.
+
+Without a happens-before relationship, one thread is not guaranteed to observe another thread’s writes correctly.
+
+---
+
+## Question 10: What is CAS?
+
+CAS means Compare-And-Set or Compare-And-Swap.
+
+It atomically performs logic equivalent to:
+
+```text
+If current value equals expected value:
+    replace it with new value
+otherwise:
+    report failure
+```
+
+Example:
+
+```java
+AtomicInteger counter = new AtomicInteger();
+
+counter.compareAndSet(0, 1);
+counter.incrementAndGet();
+```
+
+CAS is used by:
+
+- Atomic classes
+- Concurrent collections
+- Lock-free algorithms
+
+Trade-offs include:
+
+- Retrying under contention
+- ABA problems
+- Complexity for multi-variable invariants
+
+---
+
+## Question 11: What is the difference between `execute()` and `submit()`?
+
+Both are used with executors.
+
+### `execute()`
+
+```java
+executor.execute(task);
+```
+
+- Accepts `Runnable`
+- Returns `void`
+- Uncaught task exceptions are handled through the worker thread’s exception mechanism
+
+### `submit()`
+
+```java
+Future<?> future = executor.submit(task);
+```
+
+- Accepts `Runnable` or `Callable`
+- Returns a `Future`
+- Supports result retrieval and cancellation
+- Task exceptions are captured and rethrown from `Future.get()` as `ExecutionException`
+
+```java
+Future<Integer> future =
+        executor.submit(() -> 42);
+
+int result = future.get();
+```
+
+A common production mistake is using `submit()` and never inspecting the returned `Future`, causing task failures to be overlooked.
+
+---
+
+# `05-jvm/basic-questions.md`
+
+## Question 1: What is a JIT compiler?
+
+The Just-In-Time compiler is part of the JVM execution system.
+
+It identifies frequently executed bytecode and compiles it into optimized native machine code at runtime.
+
+Benefits include:
+
+- Faster repeated execution
+- Runtime profiling
+- Method inlining
+- Dead-code elimination
+- Escape analysis
+- Speculative optimization
+
+The JVM may initially interpret code and later compile frequently used sections.
+
+---
+
+## Question 2: What is the difference between an interpreter and a JIT compiler?
+
+| Interpreter                                  | JIT compiler                         |
+| -------------------------------------------- | ------------------------------------ |
+| Executes bytecode instruction by instruction | Compiles bytecode into native code   |
+| Low startup cost                             | Compilation adds runtime cost        |
+| Usually slower for repeated code             | Faster for frequently executed code  |
+| Begins execution immediately                 | Optimizes based on runtime profiling |
+
+Modern JVMs combine interpretation and JIT compilation.
+
+---
+
+## Question 3: What are JVM runtime memory areas?
+
+The JVM specification defines runtime data areas including:
+
+- Heap
+- Method area
+- Java stacks
+- Program counter registers
+- Native method stacks
+
+```mermaid
+flowchart TD
+    JVM[JVM Runtime Memory] --> H[Heap]
+    JVM --> M[Method Area]
+    JVM --> S[Java Thread Stacks]
+    JVM --> PC[PC Registers]
+    JVM --> N[Native Method Stacks]
+
+    H --> OBJ[Objects and Arrays]
+    M --> META[Class Metadata and Runtime Structures]
+    S --> FRAME[Method Frames and Local Variables]
+```
+
+The exact physical implementation is JVM-specific.
+
+For example, HotSpot commonly uses Metaspace for class metadata, but “Metaspace” and the JVM specification’s method area are not perfectly identical concepts.
+
+---
+
+## Question 4: What is garbage collection?
+
+Garbage collection automatically reclaims memory occupied by objects that are no longer reachable.
+
+```java
+Object value = new Object();
+value = null;
+```
+
+The object may become eligible for garbage collection, but collection is not immediate or guaranteed at a specific time.
+
+Calls such as:
+
+```java
+System.gc();
+Runtime.getRuntime().gc();
+```
+
+only request or suggest that the JVM perform garbage collection. They do not force it.
+
+Garbage collectors manage memory, not arbitrary external resources such as:
+
+- Files
+- Database connections
+- Sockets
+- Locks
+
+Use explicit cleanup or try-with-resources for those resources.
+
+---
+
+## Question 5: How would you investigate high CPU usage in a JVM?
+
+A production investigation could include:
+
+1. Confirm the Java process consuming CPU.
+2. Identify high-CPU operating-system thread IDs.
+3. Convert native thread IDs to the format used in JVM thread dumps.
+4. Capture several thread dumps over time.
+5. Locate matching Java threads.
+6. Inspect hot stack traces and thread states.
+7. Record Java Flight Recorder data.
+8. Check garbage-collection CPU usage.
+9. Use profilers or async-profiler where allowed.
+10. Correlate findings with traffic, deployments and logs.
+
+Common causes include:
+
+- Infinite or expensive loops
+- Busy waiting
+- Excessive serialization
+- Regex backtracking
+- High garbage-collection activity
+- Lock contention
+- Excessive retries
+- Inefficient algorithms
+- Unexpected traffic
+
+One thread dump is only a snapshot. Multiple samples are usually required.
+
+---
+
+# `06-database/jdbc-basic-questions.md`
+
+## Question 1: What is JDBC?
+
+JDBC is the standard Java API for interacting with relational databases.
+
+Typical workflow:
+
+```java
+try (
+        Connection connection =
+                dataSource.getConnection();
+
+        PreparedStatement statement =
+                connection.prepareStatement(
+                        "SELECT name FROM users WHERE id = ?"
+                )
+) {
+    statement.setLong(1, userId);
+
+    try (ResultSet resultSet =
+                 statement.executeQuery()) {
+
+        if (resultSet.next()) {
+            return resultSet.getString("name");
+        }
+    }
 }
-}
-The wait(), notify(), and notifyAll() methods are powerful tools for coordinating the actions of multiple threads. However, they must be used carefully to avoid race conditions and deadlocks.
+```
 
-## Question 64: Concurrency vs parallelism?
+Main interfaces include:
 
-No answer provided yet.
+- `DataSource`
+- `Connection`
+- `PreparedStatement`
+- `CallableStatement`
+- `ResultSet`
 
-## Question 65: What is happens-before?
+Production applications should normally:
 
-No answer provided yet.
+- Use a connection pool
+- Use `PreparedStatement`
+- Use try-with-resources
+- Manage transactions explicitly
+- Avoid manually loading modern JDBC drivers unless required by legacy environments
 
-## Question 66: What is CAS (compare-and-swap)?
+The old “load driver, connect, execute, close” sequence is conceptually useful but incomplete for modern applications.
 
-No answer provided yet.
+---
 
-## Question 67: `execute()` vs `submit()`?
+# `08-api-security/basic-questions.md`
 
-No answer provided yet.
+## Question 1: How would you secure a REST API end to end?
 
-## Question 68: Differentiate between JDK, JRE, and JVM.
+A secure REST API requires multiple controls:
 
-• JDK (Java Development Kit): Provides tools for development (compiler, debugger). 
-• JRE (Java Runtime Environment): Includes libraries and JVM for running Java 
-applications. 
-• JVM (Java Virtual Machine): Converts bytecode into machine code and executes it.
+### Transport security
 
-## Question 69: Explain the differ b/w JDK, JRE, JVM.
+- HTTPS/TLS
+- Secure certificates
+- Redirect or reject plain HTTP
+- Appropriate TLS versions and ciphers
 
-JDK :
-Java Development Kit is a software development environment that includes JRE and development tools. It's used to create Java applications and applets. JDK includes tools like a compiler, debugger, and documentation generator.
-JRE :
-Java Runtime Environment is a set of software tools that provides a runtime environment for running other software. It's used to run Java applications. JRE contains class libraries, supporting files, and the JVM.
-JVM :
-Java Virtual Machine is the foundation of Java programming language and ensures the program's Java source code will be platform-agnostic. It's used to run Java bytecode. JVM is included in both JDK and JRE, and Java programs won't run without it.
+### Authentication
 
-## Question 70: Interpreter vs JIT compiler?
+- OAuth 2.0 or OpenID Connect
+- Short-lived access tokens
+- Validated JWT signatures and claims
+- Secure API keys for suitable machine clients
 
-No answer provided yet.
+### Authorization
 
-## Question 71: How would you investigate high CPU usage in a running JVM?
+- Role or permission checks
+- Resource-level ownership checks
+- Least privilege
+- Deny-by-default policies
 
-No answer provided yet.
+### Input and output security
 
-## Question 72: How would you secure a REST API end to end?
+- Request validation
+- Parameterized SQL queries
+- Safe serialization
+- File-upload restrictions
+- Controlled error responses
 
-No answer provided yet.
+### Abuse protection
 
-## Question 73: What are design patterns? Name a few commonly used ones in Java.
+- Rate limiting
+- Request-size limits
+- Timeouts
+- Quotas
+- Bot or anomaly detection where needed
 
-Design patterns are reusable solutions to common software design problems. Examples: 
-Singleton, Factory, Observer.
+### Operational security
 
-## Question 74: What is Java?
+- Secret management
+- Audit logging
+- Dependency scanning
+- Patch management
+- Security headers
+- Monitoring and alerting
+- Correlation IDs
 
-Java is a object oriented, platform independent, case sensitive, strongly typed checking ,
-high level , open source programming language developed by James Gosling in the
-year of 1995.
+Authentication alone does not secure an API. Every request must also be authorized for the specific operation and resource.
 
-## Question 75: Features of Java?
+---
 
-1)Simple
-2)Object oriented
-3)Platform independent
-4)Portable
-5)Architecture Neutral
-6)Highly secured
-7)Robust
-8)Multithreaded
-9)Distributed
-10)Dynamic
+# `09-design-patterns/basic-questions.md`
 
-## Question 76: Is it possible to execute java program without main methods?
+## Question 1: What are design patterns?
 
-Till 1.6 version it is possible to execute java program without main method
-using static block. But from 1.7 version onwards it is not possible to execute
-java program without main method.
-ex: class A
-{
-static
-{
-System.out.println("Hello World");
-System.exit(0);
-}
-}
+Design patterns are reusable descriptions of solutions to recurring software design problems.
 
-## Question 77: What is static import in java?
+They are not complete code templates and should not be applied without understanding the problem.
 
-Using static import we can access static members directly.
-Ex: import static java.lang.System.*;
-class Test
-{
-public static void main(String[] args)
-{
-out.println("Hello World");
-}
-}
-8)Which is a default package in java?
-java.lang package
+Common categories include:
 
-## Question 78: What is JIT compiler?
+### Creational
 
-IT is a part of a JVM which is used to increase the execution speed of our program.
-
-## Question 79: How many memories are there in java?
-
-We have five memories in java.
-1) Method area
-2) Heap
-3) JAva Stack
-4) PC Register
-5) Native method stack
-
-## Question 80: What is native method in java?
-
-A Method which is developed by using some other language is called native method.
-
-## Question 81: What is Garbage Collector ?
-
-Garbage collector is responsible to destroy unused or useless objects in java.
-There are two ways to call garbage collector in java.
-1) System.gc()
-2) Runtime.getRuntime().gc()
-
-## Question 82: Is java support access specifiers?
-
-Java does not support access specifiers.
-Java support access modifiers.
-1) default
-2) public
-3) private
-4) protected
-
-## Question 83: What is program?
-
-Program is a collection of instructions (or) Program is a set of instructions.
-
-## Question 84: Types of blocks in java?
-
-We have three types of blocks in java.
-1) Instance block
-2) Static block
-3) Local block
-
-## Question 85: Explain main method ?
-
-public:
-JVM wants to call this method from any where that's why main method is public.
-static:
-JVM wants to call this method without using object reference.
-void:
-Main method does not return anything to JVM.
-main:
-It is an identifier given to a main method.
-String[] args:
-It is a command line argument.
-20)Is java purely object oriented or not?
-No, java will not consider as purely object oriented because
-it does not support many OOPS concepts like multiple inheritance, operator overloading
-and more ever we depends upon primitive datatypes which are non-objects.
-
-## Question 86: Enhancement becomes more easy without effecting enduser they can perform any
-
-changes in our internal system.
-3)It provides flexibility to the enduser to use the system.
-4)It improves maintainability of an application.
-
-## Question 87: What is Method Overriding?
-
-Having same method name with same parameters in two different classes is called
-method overriding.
-Methods which are present in parent class are called overridden methods.
-Methods which are present in child class are called overriding methods.
-Method resolution will taken care by JVM based on runtime objects.
-ex: class A
-{
-public void m1()
-{
-System.out.println("ITALENT");
-}
-}
-class B extends A
-{
-public void m1()
-{
-System.out.println("IIHUB TALENT");
-}
-}
-
-## Question 88: What is Method Hiding?
-
-Method hiding is exactly the same as method overriding with following differences.
-Method overriding Method hiding
-All the methods present in method overriding All the methods present in method
-must be non-static. hiding must be static.
-Method resolution will taken care by JVM Method resolution will taken care
-based on runtime object. by compiler based on reference type.
-It is also known as runtime polymorphism, It is also known as compile time
-dynamic polymorphism, late binding. polymorphism, static polymorphism,early binding.
-
-## Question 89: What is API?
-
-API stands for application programming interface.
-It is a base for the programmer to develop software applications.
-API is a collection of packages.
-We have three types of API's.
-1)Predefined API:
-Built-In API is called predefined API.
-2)Userdefined API:
-API which is created by the user based on the requirement is
-called userdefined API.
-3)Third party API:
-API which is given by third party vendor.
-ex: JAVAZOOM API , Text API and etc.
-
-## Question 90: What is Has-A relationship?
-
-Has-A relationship is also known as composition and aggregation.
-There is no specific keyword to implement Has-A relationship but mostly we will use new operator.
-The main objective of Has-A relationship is to provide reusability.
-Has-A relationship will increase dependency between two components.
-ex:
-class Engine
-{
-- //engine specific functionality
-}
-class Car
-{
-Engine e=new Engine();
-}
-Composition
-Without existing container object there is a no chance of having contained object then the relationship between
-container object and contained object is called composition which is strongly association.
-Aggregation
-Without existing container object there is a chance of having contained object then the relationship
-between container object and contained object is called aggregation which is loosely association.
-
-## Question 91: What is package?
-
-Package is a collection of classes, interfaces, enums ,Annotations, Exceptions and Errors.
-Enum,Exception and Error is a special class and Annotation is a special interface.
-In general, a package is a collection of classes and interfaces.
-Package is also known as folder or a directory.
-In java, packages are divided into two types.
-All package names we need to declare under lower case letters only.
-1)Predefined packages:
-Built-In packages are called predefined packages.
-ex: java.lang , java.io, java.util
-2)Userdefined package:
-Packages which are created by ther user are called userdefined packages.
-It is highly recommanded to use package name in the reverse order of url.
-ex: com.ihubtalent.www
-
-## Question 92: What is Recursion?
-
-A method is called self for many number of times is called Recursion.
-Recursion is similar to loopings.
-In Recursion post Increment and Decrement are used.
-
-## Question 93: What is Enum?
-
-Enum is a group of named constants.
-Enum concept is introduced in 1.5 version.
-Using enum we can create our own datatype called enumerated datatype.
-When compare to old language enum, java enum is more powerful.
-Enum is a special class.
-To declare enum we need to use enum keyword.
-Syntax:
-enum enum_type_name
-{
-val1,val2,....,valN
-}
-Ex:
-enum Months
-{
-JAN,FEB,MAR
-}
-
-## Question 94: what is Generics?
-
-Array is a typesafe.
-We can provide guarantee that what type of elements are present in array.
-If requirement to store String values then we need to use String[] array.
-ex:
-String[] str=new String[100];
-str[0]="hi";
-str[2]=10; // invalid
-At the time of retrieving the data from array , we don't need to perform any typecasting
-ex:
-String[] str=new String[100];
-str[0]="hi";
-
-## Question 95: Comparable vs Comparator?
-
-OR
-What is the difference between Comparable and Comparator interface?
-Comparable
-Comparable interface present in java.lang package.
-Comparable interface contains following one method i.e compareTo() method.
-Ex:public int compareTo(Object o)
-If we depend upon default natural sorting(ascending order) order then we need to use Comparable interface.
-Comparator
-Comparator interface present in java.util package.
-Comparator interface contains following two methods.
-1) public int compare(Object obj1,Object obj2)
-2) public boolean equals(Object obj)
-Whenever we are using Comparator interface we should write
-implementation only for compare() method.
-Implementation for equals() method is optional because equals() method is available by default by Object class throw inheritence.
-If we depend upon customized sorting order then we need to use Comparator interface.
-
-## Question 96: Type of Datastructure in java?
-
-## Question 97: What is Multi-tasking?
-
-Executing several task simultenously such concept is called multi-tasking.
-Multi-tasking is divided into two types.
-1)Thread based multi-tasking
-Executing several task simultenously where each task is a same part of a program.
-It is best suitable for programmatic level.
-2)Process based multi-tasking
-Executing several task simultenously where each task is a independent process.
-It is best suitable for OS level.
-
-## Question 98: What is Lock Mechanism in Java?
-
-synchronization is build around an entity called lock.
-Whenever a thread wants to access any object. First it has to acquire the lock of it and release the lock once thread complete its task.
-
-## Question 99: What is Synchronized block?
-
-If we want to perform synchronization on specific resource of a program then we need to use
-synchronization.
-ex: If we have 100 lines of code and if we want to perform synchronization only for
-10 lines then we need to use synchronized block.
-If we keep all the logic in synchronized block then it will act as a synchronized method.
-3)Static Synchronization:
-In static synchronization the lock will be on class but not on object.
-If we declare any static method as synchronized then it is called static synchronization method.
-
-## Question 100: What is DeadLock in java?
-
-DeadLock will occur in a suitation when one thread is waiting to access
-object lock which is acquired by another thread and that thread is waiting
-to access object lock which is acquired by first thread.
-Here both the threads are waiting release the thread but no body will
-release such situation is called DeadLock.
-
-## Question 101: What is web application?
-
-Web application is a collection of web resource programs having the capability to
-generate web pages.
-We have two types of web pages.
-1)Static web page
-2)Dynamic web page
-
-## Question 102: What is web resource program?
-
-We have two types of web resource programs.
-1)Static web resource program
-It is responsible to generate static web pages.
-Ex: HTML program
-CSS program
-Bootstrap program
-Angular program and etc.
-2)Dynamic web resource program
-It is responsible to generate dynamic web pages.
-ex: Servlet program
-JSP program and etc.
+- Factory Method
+- Abstract Factory
+- Builder
+- Singleton
 
+### Structural
+
+- Adapter
+- Decorator
+- Facade
+- Proxy
+
+### Behavioral
+
+- Strategy
+- Observer
+- Template Method
+- Command
+- Chain of Responsibility
+
+Examples in Java and Spring:
+
+- Strategy: interchangeable validation or payment algorithms
+- Factory: object creation based on configuration
+- Proxy: Spring AOP and transactional proxies
+- Builder: constructing complex immutable objects
+- Observer: application events and listeners
+
+---
+
+# `07-web/basic-questions.md`
+
+## Question 1: What is a web application?
+
+A web application is software accessed through web protocols, typically HTTP or HTTPS.
+
+It commonly includes:
+
+- Browser or client interface
+- Web server or API server
+- Business logic
+- Databases
+- Caches
+- Authentication and authorization
+- External integrations
+
+Web applications may provide:
+
+- Server-rendered HTML
+- Client-side applications
+- REST APIs
+- GraphQL APIs
+- WebSocket communication
+
+---
+
+## Question 2: What is a web resource?
+
+A web resource is any resource addressable through a URI.
+
+Examples include:
+
+- HTML documents
+- CSS files
+- JavaScript files
+- Images
+- JSON API responses
+- Downloadable files
+- Dynamically generated pages
+
+Static resources are served without application-specific regeneration for every request.
+
+Dynamic resources are generated or customized by server-side application logic.
+
+Frameworks such as Angular or React are not individual static web-resource programs. They are frontend application frameworks whose built assets may be served as static files.
+
+---
+
+# Questions to Remove or Relocate
+
+## Remove Question 83: “What is program?”
+
+> A program is a collection of instructions.
+
+This is too elementary and adds little Java interview value.
+
+---
+
+## Remove Question 86
+
+The content begins in the middle of an explanation:
+
+```text
+Enhancement becomes more easy without effecting enduser...
+```
+
+It has no valid question or context and should be deleted unless its missing preceding content can be recovered.
+
+---
+
+## Replace Question 96
+
+Original:
+
+```text
+What is Type of Datastructure in java?
+```
+
+This is incomplete. Replace it with:
+
+```markdown
+## What are the main data-structure categories available in Java?
+
+- Arrays
+- Lists
+- Sets
+- Queues and deques
+- Maps
+- Heaps
+- Trees
+- Graphs implemented by applications
+- Concurrent collections
+```
+
+Place this in the Collections theory file rather than Core Java basic questions.
+
+---
+
+# Duplicate Questions to Merge
+
+| Original questions    | Keep as                        |
+| --------------------- | ------------------------------ |
+| 1, 12 and 74          | What is Java?                  |
+| 1, 13 and 75          | Features of Java               |
+| 4, 15, 16 and 82      | Access modifiers               |
+| 5, 19, 20 and 91      | Packages and imports           |
+| 3 and 85              | `main()` method                |
+| 18 and 87             | Method overriding              |
+| 23 and 26             | `equals()`                     |
+| 30–33                 | `HashMap` fundamentals         |
+| 34–37                 | `HashSet` fundamentals         |
+| 38–40                 | `LinkedList` fundamentals      |
+| 41–42                 | `TreeSet` fundamentals         |
+| 54, 56, 57 and 60     | Threads and lifecycle          |
+| 55, 58, 59, 98 and 99 | Synchronization                |
+| 61, 62 and 100        | Deadlock                       |
+| 68 and 69             | JDK, JRE and JVM               |
+| 78 and 70             | Interpreter and JIT            |
+| 101 and 102           | Web applications and resources |
+
+This reorganization preserves the useful content while removing repetition, correcting errors, and keeping each interview file focused on one topic.

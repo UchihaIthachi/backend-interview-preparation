@@ -59,8 +59,8 @@ tests with small datasets.
 
 ## 7. Trade-offs
 
-| Fetch join | Entity graph | DTO projection |
-|---|---|---|
+| Fetch join                         | Entity graph          | DTO projection                     |
+| ---------------------------------- | --------------------- | ---------------------------------- |
 | Simple, works for one relationship | Reusable, declarative | Best performance, most boilerplate |
 
 ## 8. Interview questions
